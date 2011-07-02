@@ -1,4 +1,11 @@
-#include <string.h>
+/*
+ * Being called with a single command line argument this program computes
+ * and prints to stdout all possible permutations of the argument.
+ * usage: perm <string>
+ * Copyright (c) 2011 Dmitry Goncharov.
+ * Distributed under the terms of the bsd license.
+ */
+
 #include <stdio.h>
 
 void swap(char* s1, char* s2)
@@ -10,21 +17,21 @@ void swap(char* s1, char* s2)
 
 int main(int argc, char* argv[])
 {
-    if (*argv[0]) {
+    if (*argv[0])
+    {
         printf("%s\n", argv[1]);
         argv[0][0] = '\0';
     }
-    const size_t index = argc - 2;
-    char* s = argv[1];
-    const size_t slen = strlen(s);
-    if (index + 1 < slen)
-        main(index + 3, argv);
-    for (size_t k = index + 1; k < slen; ++k)
+    if (*(argv[1] + argc - 1))
+        main(argc + 1, argv);
+    char* s = argv[1] + argc - 1;
+    for (; *s; ++s)
     {
-        swap(s + index, s + k);
-        printf("%s\n", s);
-        main(index + 3, argv);
-        swap(s + index, s + k);
+        swap(argv[1] + argc - 2, s);
+        printf("%s\n", argv[1]);
+        main(argc + 1, argv);
+        swap(argv[1] + argc - 2, s);
     }
+    return 0;
 }
 
