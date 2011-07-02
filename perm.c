@@ -1,9 +1,11 @@
 /*
  * Being called with a single command line argument this program computes
  * and prints to stdout all possible permutations of the argument.
- * usage: perm <string>
+ *
  * Copyright (c) 2011 Dmitry Goncharov.
  * Distributed under the terms of the bsd license.
+ *
+ * usage: perm <string>
  */
 
 #include <stdio.h>
