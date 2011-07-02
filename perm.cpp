@@ -3,15 +3,16 @@
 #include <stddef.h>
 #include <string.h>
 
-void perm(char* s, size_t slen, size_t index)
+void perm(size_t index, char* s)
 {
+    const size_t slen = strlen(s);
     if (index + 1 < slen)
-        perm(s, slen, index + 1);
+        perm(index + 1, s);
     for (size_t k = index + 1; k < slen; ++k)
     {
         std::swap(s[index], s[k]);
         std::cout << s << std::endl;
-        perm(s, slen, index + 1);
+        perm(index + 1, s);
         std::swap(s[index], s[k]);
     }
 }
@@ -19,6 +20,6 @@ void perm(char* s, size_t slen, size_t index)
 int main(int argc, char* argv[])
 {
     std::cout << argv[1] << std::endl;
-    perm(argv[1], strlen(argv[1]), 0);
+    perm(0, argv[1]);
 }
 
