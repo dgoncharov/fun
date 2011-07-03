@@ -7,7 +7,7 @@ if [[ 120 != $n ]]; then
     echo failure $n != 120
     exit 1
 fi
-n=$(./perm 1234567 | sort -u |wc -l)
+n=$(./perm 6214375 | sort -u |wc -l)
 if [[ 5040 != $n ]]; then
     echo failure $n != 5040
     exit 1
