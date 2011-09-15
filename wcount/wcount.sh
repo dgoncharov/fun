@@ -23,7 +23,7 @@
 # {word1 => {linenum1 => noccurences1, linenum2 => noccurences2}, word2 =>
 # {linenum1 => noccurences3}}
 
-echo one >> /tmp/1
+echo one one one one >> /tmp/1
 echo two >> /tmp/1
 echo two >> /tmp/1
 echo three >> /tmp/1
@@ -32,21 +32,39 @@ echo three >> /tmp/1
 
 
 declare -A words
-#declare -A lines
+declare -a lines
 
 linenum=1
 while read line 
 do
     for w in $line
     do
-        cnt=${words[$w]}
+        cnt=${lines[$linenum]}
         let cnt+=1
-        words[$w]=$cnt
+        lines[$linenum]=$cnt
+        words[$w]=lines
+#        words[gore]=lines
     done
     let linenum+=1
 done < /tmp/1
+
+#testlines=(6 7 8)
+#words[gore]=testlines
+#r=${words[gore]}
+#for n in $(eval echo \${!$r[@]})
+#do
+#    echo -n '$words[gore]['$n']='
+#    eval echo \${$r[$n]}
+#done
+
 for k in ${!words[@]}
 do
-    echo '${words['$k']}='${words[$k]}
+#    echo '${words['$k']}='${words[$k]}
+    r=${words[$k]}
+    for n in $(eval echo \${!$r[@]})
+    do
+        echo -n '$words['$k']['$n']='
+        eval echo \${$r[$n]}
+    done
 done
 
