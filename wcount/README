@@ -1,0 +1,6 @@
+This program reads the specified file and for every word in the file prints
+to stdout the number of occurences of that word in every line where the word
+is present.
+
+Distributed under the terms of the bsd license.
+Copyright (c) 2011 Dmtiry Goncharov (dgoncharov@users.sf.net).
