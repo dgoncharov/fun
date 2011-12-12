@@ -18,7 +18,7 @@ readonly src=$1
 declare -A words
 
 linenum=0
-while read line 
+while read line
 do
     for w in $line
     do
