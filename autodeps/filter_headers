@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [[ $# != 1 ]]
+then
+    echo "$0 <dfile>" >&2
+    exit 1
+fi
+
+
+read obj src headers <"$1"
+echo "$headers"
