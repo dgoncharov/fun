@@ -5,12 +5,12 @@ SHELL:=/bin/bash
 .NOTINTERMEDIATE: %.d %.h
 .SECONDARY: trie.o trie.t.o
 
-all_cppflags:=$(CPPFLAGS)
-all_cflags:=-Wall -Wextra -ggdb -O0 -m64 $(CFLAGS)
-
 srcdir:=..
 vpath %.c $(srcdir)
 vpath %.h $(srcdir)
+
+all_cppflags:=-I$(srcdir) $(CPPFLAGS)
+all_cflags:=-Wall -Wextra -Werror -ggdb -O0 -m64 $(CFLAGS)
 
 obj:=trie.o trie.t.o
 dfiles:=$(obj:.o=.d)
