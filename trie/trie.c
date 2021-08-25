@@ -42,46 +42,44 @@ int trie_push (void *trie, const char *key)
     return 0;
 }
 
-//FIXME: trie_find_pattern fails to find the shortest pattern.
 static
-int trie_find_pattern (const void *trie, const char *key)
+int trie_find_imp (const void *trie, const char *key, int matching_pattern, int pattern_found)
 {
     const struct trie *tr = trie;
-    int pattern = 0;
-    for (; *key; ++key) {
-        const int index = *key;
-        if (pattern == 0 && tr->next['%']) {
-            tr = tr->next['%'];
-            pattern = 1;
-        }
-        if (tr->next[index] == 0) {
-            if (pattern)
-                continue;
-            return 0;
-        }
-        tr = tr->next[index];
+    const struct trie *next;
+
+
+    if (*key == '\0')
+       return tr->end;
+
+    next = tr->next[(int) *key];
+printf("key=%s, matching_pattern=%d, pattern_found=%d, next[%c]=%p\n", key, matching_pattern, pattern_found, *key, next);
+    if (next && trie_find_imp (next, ++key, 0, pattern_found)) {
+printf("found by %c\n", *key);
+        return 1;
     }
-    return tr->end;
+    if (matching_pattern) {
+printf("matching %c to %%\n", *key);
+        return trie_find_imp (trie, ++key, 1, pattern_found);
+}
+    if (pattern_found) {
+printf("pattern was already used, fail\n");
+        return 0;
+}
+printf("trying %%\n");
+    next = tr->next['%'];
+printf("    next[%%]=%p\n", next);
+    if (next == 0) {
+printf("pattern not found, fail\n");
+        return 0;
+}
+printf("found %%\n");
+    return trie_find_imp (next, ++key, 1, 1);
 }
 
 int trie_find (const void *trie, const char *key)
 {
-    const struct trie *root = trie;
-    const struct trie *tr = trie;
-    for (const char *k = key; *k; ++k) {
-        const int index = *k;
-        if (tr->next[index] == 0) {
-            if (root->pattern)
-                return trie_find_pattern (trie, key);
-            return 0;
-        }
-        tr = tr->next[index];
-    }
-    if (tr->end)
-        return 1;
-    if (root->pattern)
-        return trie_find_pattern (trie, key);
-    return 0;
+    return trie_find_imp (trie, key, 0, 0);
 }
 
 static
