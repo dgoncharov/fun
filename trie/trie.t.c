@@ -1,32 +1,39 @@
 #include "trie.h"
 #include "ctest.h"
+#include <string.h>
 
 static
 int run_test (int test)
 {
-    int rc;
+    const char *rc;
     void *trie = trie_init ();
     switch (test) {
     case 0:
+        trie_push (trie, "h%.c");
         trie_push (trie, "%e.c");
         trie_push (trie, "hell.c");
+        trie_push (trie, "h%.o");
+        trie_push (trie, "he%.o");
+        trie_push (trie, "h%llo.o");
+        trie_push (trie, "hell%.c");
+        trie_push (trie, "hel%.o");
         trie_push (trie, "%.o");
         rc = trie_find (trie, "hello.o");
-        ASSERT(rc == 1, "rc = %d\n", rc);
+        ASSERT(strcmp (rc, "h%llo.o") == 0, "rc = %s\n", rc);
         break;
     case 1:
         rc = trie_find (trie, "hello");
-        ASSERT(rc == 0, "rc = %d\n", rc);
+        ASSERT(rc == 0, "rc = %s\n", rc);
         trie_push (trie, "hello");
         rc = trie_find (trie, "hello");
-        ASSERT(rc == 1, "rc = %d\n", rc);
+        ASSERT(rc, "rc = %s\n", rc);
         break;
     case 2:
         rc = trie_find (trie, "");
-        ASSERT(rc == 0, "rc = %d\n", rc);
+        ASSERT(rc == 0, "rc = %s\n", rc);
         trie_push (trie, "");
         rc = trie_find (trie, "");
-        ASSERT(rc == 1, "rc = %d\n", rc);
+        ASSERT(rc, "rc = %s\n", rc);
         break;
     case 3:
         trie_push (trie, "hell");
@@ -41,15 +48,23 @@ int run_test (int test)
         trie_push (trie, "a");
 
         rc = trie_find (trie, "hello");
-        ASSERT(rc == 0, "rc = %d\n", rc);
+        ASSERT(rc == 0, "rc = %s\n", rc);
         rc = trie_find (trie, "hell");
-        ASSERT(rc == 1, "rc = %d\n", rc);
+        ASSERT(rc, "rc = %s\n", rc);
         trie_push (trie, "hello");
         rc = trie_find (trie, "hello");
-        ASSERT(rc == 1, "rc = %d\n", rc);
+        ASSERT(rc, "rc = %s\n", rc);
         break;
     case 4:
         // Test trie_print with an empty trie.
+        break;
+    case 5:
+        trie_push (trie, "%.x");
+        trie_push (trie, "%.q");
+        trie_push (trie, "%.z");
+        trie_push (trie, "%.u");
+        rc = trie_find (trie, "hello.g");
+        ASSERT(rc == 0, "rc = %s\n", rc);
         break;
     default:
         status = -1;

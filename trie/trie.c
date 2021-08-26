@@ -6,6 +6,7 @@
 enum {asciisz = 128};
 struct trie {
     struct trie *next[asciisz];
+    char *key; // The key which ends here.
     unsigned end:1; // When set this node is the end of a word.
     unsigned pattern:1; // When set the tree contains a %.
 };
@@ -21,6 +22,7 @@ int trie_free (void *trie)
     for (size_t k = 0; k < asciisz; ++k)
         if (tr->next[k])
             trie_free (tr->next[k]);
+    free (tr->key);
     free (trie);
     return 0;
 }
@@ -30,6 +32,7 @@ int trie_push (void *trie, const char *key)
     struct trie *root = trie;
     struct trie *tr = trie;
     int index;
+    size_t klen;
     for (const char *k = key; *k; ++k) {
         index = *k;
         if (tr->next[index] == 0)
@@ -39,24 +42,33 @@ int trie_push (void *trie, const char *key)
             root->pattern = 1;
     }
     tr->end = 1;
+    klen = strlen (key) + 1; // + 1 for null terminator.
+    tr->key = malloc (klen);
+    memcpy (tr->key, key, klen);
     return 0;
 }
 
 static
-int trie_find_imp (const void *trie, const char *key, int matching_pattern, int pattern_found)
+const struct trie *trie_find_imp (const void *trie, const char *key, int matching_pattern, int pattern_found)
 {
     const struct trie *tr = trie;
     const struct trie *next;
 
 
-    if (*key == '\0')
-       return tr->end;
+    if (*key == '\0') {
+        if (tr->key) {
+            printf("found pattern %s\n", tr->key);
+            return tr;
+        }
+        printf("exhaused key, fail\n");
+        return 0;
+}
 
     next = tr->next[(int) *key];
 printf("key=%s, matching_pattern=%d, pattern_found=%d, next[%c]=%p\n", key, matching_pattern, pattern_found, *key, next);
-    if (next && trie_find_imp (next, ++key, 0, pattern_found)) {
+    if (next && (next = trie_find_imp (next, ++key, 0, pattern_found))) {
 printf("found by %c\n", *key);
-        return 1;
+        return next;
     }
     if (matching_pattern) {
 printf("matching %c to %%\n", *key);
@@ -77,9 +89,12 @@ printf("found %%\n");
     return trie_find_imp (next, ++key, 1, 1);
 }
 
-int trie_find (const void *trie, const char *key)
+const char *trie_find (const void *trie, const char *key)
 {
-    return trie_find_imp (trie, key, 0, 0);
+    const struct trie *tr = trie_find_imp (trie, key, 0, 0);
+    if (tr == 0)
+        return 0;
+    return tr->key;
 }
 
 static
