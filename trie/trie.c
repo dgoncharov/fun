@@ -49,7 +49,7 @@ int trie_push (void *trie, const char *key)
 }
 
 static
-const struct trie *trie_find_imp (const void *trie, const char *key, int matching_pattern, int pattern_found)
+const struct trie *trie_find_imp (const void *trie, const char *key, int matching_pattern, int pattern_used, int depth)
 {
     const struct trie *tr = trie;
     const struct trie *next;
@@ -57,41 +57,76 @@ const struct trie *trie_find_imp (const void *trie, const char *key, int matchin
 
     if (*key == '\0') {
         if (tr->key) {
+            for (int k = depth; k; --k)
+                printf(" ");
             printf("found pattern %s\n", tr->key);
             return tr;
         }
+        for (int k = depth; k; --k)
+            printf(" ");
         printf("exhaused key, fail\n");
         return 0;
-}
+    }
 
     next = tr->next[(int) *key];
-printf("key=%s, matching_pattern=%d, pattern_found=%d, next[%c]=%p\n", key, matching_pattern, pattern_found, *key, next);
-    if (next && (next = trie_find_imp (next, ++key, 0, pattern_found))) {
-printf("found by %c\n", *key);
-        return next;
+    for (int k = depth; k; --k)
+        printf(" ");
+    printf("key=%s, matching_pattern=%d, pattern_used=%d, next[%c]=%p\n", key, matching_pattern, pattern_used, *key, next);
+    if (next && (next = trie_find_imp (next, key+1, 0, pattern_used, depth+1))) {
+        const struct trie *alt;
+        for (int k = depth; k; --k)
+            printf(" ");
+        printf("found by %c\n", *key);
+        if (pattern_used)
+            return next;
+        for (int k = depth; k; --k)
+            printf(" ");
+        printf ("trying alternative %%, key = %s\n", key);
+        alt = tr->next['%'];
+        if (alt == 0)
+            return next;
+        alt = trie_find_imp (alt, key+1, 1, 1, depth+1);
+        if (alt == 0)
+            return next;
+        for (int k = depth; k; --k)
+            printf(" ");
+        printf ("found alternative %%, key = %s, alt->key=%s, next->key=%s\n", key, alt->key, next->key);
+        return strlen (alt->key) > strlen (next->key) ? alt : next;
     }
     if (matching_pattern) {
-printf("matching %c to %%\n", *key);
-        return trie_find_imp (trie, ++key, 1, pattern_found);
-}
-    if (pattern_found) {
-printf("pattern was already used, fail\n");
+        for (int k = depth; k; --k)
+            printf(" ");
+        printf("matching %c to %%\n", *key);
+        return trie_find_imp (trie, key+1, 1, pattern_used, depth+1);
+    }
+    if (pattern_used) {
+        for (int k = depth; k; --k)
+            printf(" ");
+        printf("pattern was already used, fail\n");
         return 0;
-}
-printf("trying %%\n");
+    }
+    for (int k = depth; k; --k)
+        printf(" ");
+    printf("trying %%\n");
     next = tr->next['%'];
-printf("    next[%%]=%p\n", next);
+    for (int k = depth; k; --k)
+        printf(" ");
+    printf("next[%%]=%p\n", next);
     if (next == 0) {
-printf("pattern not found, fail\n");
+        for (int k = depth; k; --k)
+            printf(" ");
+        printf("pattern not found, fail\n");
         return 0;
-}
-printf("found %%\n");
-    return trie_find_imp (next, ++key, 1, 1);
+    }
+    for (int k = depth; k; --k)
+        printf(" ");
+    printf("found %%\n");
+    return trie_find_imp (next, key+1, 1, 1, depth+1);
 }
 
 const char *trie_find (const void *trie, const char *key)
 {
-    const struct trie *tr = trie_find_imp (trie, key, 0, 0);
+    const struct trie *tr = trie_find_imp (trie, key, 0, 0, 0);
     if (tr == 0)
         return 0;
     return tr->key;
