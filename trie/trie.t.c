@@ -17,29 +17,29 @@ int run_test (long test)
     case 0:
         // Test lookup in an empty trie.
         rc = trie_has (trie, "hello.o");
-        ASSERT(rc == 0);
+        ASSERT (rc == 0);
         key = trie_find (trie, "hello.o");
-        ASSERT(key == 0, "key = %s\n", key);
+        ASSERT (key == 0, "key = %s\n", key);
         break;
     case 1:
         // Test explicit match.
         trie_push (trie, "hello");
         rc = trie_has (trie, "hello");
-        ASSERT(rc);
+        ASSERT (rc);
         key = trie_find (trie, "hello");
-        ASSERT(key, "key = %s\n", key);
+        ASSERT (strcmp (key, "hello") == 0, "key = %s\n", key);
         break;
     case 2:
         // Test that an empty string is a valid key.
         rc = trie_has (trie, "");
-        ASSERT(rc == 0);
+        ASSERT (rc == 0);
         key = trie_find (trie, "");
-        ASSERT(key == 0, "key = %s\n", key);
+        ASSERT (key == 0, "key = %s\n", key);
         trie_push (trie, "");
         rc = trie_has (trie, "");
-        ASSERT(rc);
+        ASSERT (rc);
         key = trie_find (trie, "");
-        ASSERT(key, "key = %s\n", key);
+        ASSERT (key && *key == '\0', "key = %s\n", key);
         break;
     case 3:
         // Test various near matches.
@@ -57,21 +57,21 @@ int run_test (long test)
         trie_push (trie, "a");
 
         rc = trie_has (trie, "hello");
-        ASSERT(rc == 0);
+        ASSERT (rc == 0);
         key = trie_find (trie, "hello");
-        ASSERT(key == 0, "key = %s\n", key);
+        ASSERT (key == 0, "key = %s\n", key);
 
         rc = trie_has (trie, "hell");
-        ASSERT(rc);
+        ASSERT (rc);
         key = trie_find (trie, "hell");
-        ASSERT(key, "key = %s\n", key);
+        ASSERT (strcmp (key, "hell") == 0, "key = %s\n", key);
 
         trie_push (trie, "hello");
 
         rc = trie_has (trie, "hello");
-        ASSERT(rc);
+        ASSERT (rc);
         key = trie_find (trie, "hello");
-        ASSERT(key, "key = %s\n", key);
+        ASSERT (strcmp (key, "hello") == 0, "key = %s\n", key);
         break;
     case 4:
         // Test trie_print with an empty trie.
@@ -84,25 +84,25 @@ int run_test (long test)
         trie_push (trie, "%.u");
 
         rc = trie_has (trie, "hello.g");
-        ASSERT(rc == 0);
+        ASSERT (rc == 0);
         key = trie_find (trie, "hello.g");
-        ASSERT(key == 0, "key = %s\n", key);
+        ASSERT (key == 0, "key = %s\n", key);
         break;
     case 6:
         // Test that explicit match beats fuzzy match.
         trie_push (trie, "h%llo.o");
         trie_push (trie, "hello.o");
         rc = trie_has (trie, "hello.o");
-        ASSERT(rc);
+        ASSERT (rc);
         key = trie_find (trie, "hello.o");
-        ASSERT(strcmp (key, "hello.o") == 0, "key = %s\n", key);
+        ASSERT (strcmp (key, "hello.o") == 0, "key = %s\n", key);
         break;
     case 7:
         // Test that pattern % matches any key that has atleast 1 char.
         rc = trie_has (trie, "");
-        ASSERT(rc == 0);
+        ASSERT (rc == 0);
         key = trie_find (trie, "");
-        ASSERT(key == 0, "key = %s\n", key);
+        ASSERT (key == 0, "key = %s\n", key);
 
         trie_push (trie, "bye.o");
         trie_push (trie, "by%.o");
@@ -110,21 +110,21 @@ int run_test (long test)
         trie_push (trie, "hell.o");
 
         rc = trie_has (trie, "");
-        ASSERT(rc == 0);
+        ASSERT (rc == 0);
         key = trie_find (trie, "");
-        ASSERT(key == 0, "key = %s\n", key);
+        ASSERT (key == 0, "key = %s\n", key);
 
         rc = trie_has (trie, "hello.o");
-        ASSERT(rc);
+        ASSERT (rc);
         key = trie_find (trie, "hello.o");
-        ASSERT(strcmp (key, "%") == 0, "key = %s\n", key);
+        ASSERT (strcmp (key, "%") == 0, "key = %s\n", key);
         break;
     case 8:
         // Another test that pattern % matches any key that has atleast 1 char.
         rc = trie_has (trie, "");
-        ASSERT(rc == 0);
+        ASSERT (rc == 0);
         key = trie_find (trie, "");
-        ASSERT(key == 0, "key = %s\n", key);
+        ASSERT (key == 0, "key = %s\n", key);
 
         trie_push (trie, "bye.o");
         trie_push (trie, "by%.o");
@@ -132,14 +132,14 @@ int run_test (long test)
         trie_push (trie, "hell.o");
 
         rc = trie_has (trie, "hello.o");
-        ASSERT(rc == 0);
+        ASSERT (rc == 0);
         key = trie_find (trie, "hello.o");
-        ASSERT(key == 0, "key = %s\n", key);
+        ASSERT (key == 0, "key = %s\n", key);
 
         rc = trie_has (trie, "hello.oo");
-        ASSERT(rc);
+        ASSERT (rc);
         key = trie_find (trie, "hello.oo");
-        ASSERT(strcmp (key, "hello.o%") == 0, "key = %s\n", key);
+        ASSERT (strcmp (key, "hello.o%") == 0, "key = %s\n", key);
         break;
     case 9:
         // Test that trie_find finds the pattern with the shortest stem.
@@ -153,13 +153,13 @@ int run_test (long test)
         trie_push (trie, "hel%.o");
         trie_push (trie, "%.o");
         rc = trie_has (trie, "hello.o");
-        ASSERT(rc);
+        ASSERT (rc);
         key = trie_find (trie, "hello.o");
-        ASSERT(strcmp (key, "h%llo.o") == 0, "key = %s\n", key);
+        ASSERT (strcmp (key, "h%llo.o") == 0, "key = %s\n", key);
         break;
     case 10:
         // The key to find contains a %.
-        ASSERT(!"implement this test");
+        ASSERT (!"implement this test");
         break;
     case 11:
         // Test that pushing a key more than once has no effect.
@@ -170,9 +170,9 @@ int run_test (long test)
         trie_push (trie, "hello.o");
         trie_push (trie, "hell%.o");
         rc = trie_has (trie, "hello.o");
-        ASSERT(rc);
+        ASSERT (rc);
         key = trie_find (trie, "hello.o");
-        ASSERT(strcmp (key, "hello.o") == 0, "key = %s\n", key);
+        ASSERT (strcmp (key, "hello.o") == 0, "key = %s\n", key);
         break;
     case 12:
         // Test that subsequent lookups find the same key.
@@ -183,14 +183,14 @@ int run_test (long test)
         trie_push (trie, "hell%.o");
 
         rc = trie_has (trie, "hello.o");
-        ASSERT(rc);
+        ASSERT (rc);
         key = trie_find (trie, "hello.o");
-        ASSERT(strcmp (key, "hell%.o") == 0, "key = %s\n", key);
+        ASSERT (strcmp (key, "hell%.o") == 0, "key = %s\n", key);
 
         rc = trie_has (trie, "hello.o");
-        ASSERT(rc);
+        ASSERT (rc);
         key = trie_find (trie, "hello.o");
-        ASSERT(strcmp (key, "hell%.o") == 0, "key = %s\n", key);
+        ASSERT (strcmp (key, "hell%.o") == 0, "key = %s\n", key);
         break;
     case 13: {
         // Test a key longer than 64k.
@@ -201,28 +201,28 @@ int run_test (long test)
         const size_t keysz = 64 * 1024 + 5;
 
         key = malloc(keysz);
-        ASSERT(key);
+        ASSERT (key);
         memset (key, 'y', keysz);
         key[keysz-1] = '\0';
 
         rc = trie_has (trie, key);
         ASSERT (rc == 0);
         key2 = trie_find (trie, key);
-        ASSERT(key2 == 0, "key2 = %s\n", key2);
+        ASSERT (key2 == 0, "key2 = %s\n", key2);
 
         trie_push (trie, "y%y");
 
         rc = trie_has (trie, key);
         ASSERT (rc);
         key2 = trie_find (trie, key);
-        ASSERT(strcmp (key2, "y%y") == 0, "key2 = %s\n", key2);
+        ASSERT (strcmp (key2, "y%y") == 0, "key2 = %s\n", key2);
 
         trie_push (trie, key);
 
         rc = trie_has (trie, key);
         ASSERT (rc);
         key2 = trie_find (trie, key);
-        ASSERT(strcmp (key2, key) == 0, "key = %s, key2 = %s\n", key, key2);
+        ASSERT (strcmp (key2, key) == 0, "key = %s, key2 = %s\n", key, key2);
 
         free (key);
         break;
