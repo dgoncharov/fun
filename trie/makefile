@@ -2,32 +2,35 @@ MAKEFLAGS+=-Rr
 SHELL:=/bin/bash
 .ONESHELL:
 .SECONDEXPANSION:
-.NOTINTERMEDIATE: %.d %.h
-.SECONDARY: trie.o trie.t.o
 
 srcdir:=..
 vpath %.c $(srcdir)
 vpath %.h $(srcdir)
 
-all_cppflags:=-I$(srcdir) $(CPPFLAGS)
-all_cflags:=-Wall -Wextra -Werror -ggdb -O0 -m64 $(CFLAGS)
-
+target:=trie.t.tsk
 obj:=trie.o trie.t.o
 dfiles:=$(obj:.o=.d)
+.SECONDARY: $(obj)
+.NOTINTERMEDIATE: $(dfiles) %.h
 
-all: trie.t.tsk
-trie.t.tsk: $(obj)
-	gcc -o $@ $^
+all_ldflags:=-Wl,--hash-style=gnu $(LDFLAGS)
+all: $(target)
+$(target): $(obj)
+	gcc -o $@ $(all_ldflags) $^
+
+all_cppflags:=-I$(srcdir) $(CPPFLAGS)
+all_cflags:=-Wall -Wextra -Werror -ggdb -O0 -m64 $(CFLAGS)
 
 %.o: %.c %.d $$(file <%.d)
 	gcc $(all_cppflags) $(all_cflags) -MMD -MF $*.td -o $@ -c $<
 	read obj src headers <$*.td; echo "$$headers" >$*.d
 	touch -c $@
 
-$(dfiles): ;
+$(dfiles):;
 %.h:;
 
 clean:
-	rm -f trie.t.tsk $(obj) $(dfiles) $(obj:.o=.td)
+	rm -f $(target) $(obj) $(dfiles) $(obj:.o=.td)
 
+.PHONY: all clean
 makefile::;
