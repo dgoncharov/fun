@@ -1,9 +1,12 @@
 #include "trie.h"
 #include "ctest.h"
 #include <string.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 static
-int run_test (int test)
+int run_test (long test)
 {
     int rc;
     const char *key;
@@ -237,7 +240,15 @@ int main (int argc, char *argv[])
 {
     if (argc >= 2) {
         // Run the specified test.
-        int test = atoi (argv[1]);
+        char *r;
+        long test;
+
+        errno = 0;
+        test = strtol(argv[1], &r, 0);
+        if (errno || r == argv[1]) {
+            fprintf(stderr, "usage: %s [test]\n", argv[0]);
+            return 1;
+        }
         run_test (test);
         if (status > 0)
             fprintf (stderr, "%d tests failed\n", status);
