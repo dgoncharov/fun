@@ -5,6 +5,7 @@ void *trie_init ();
 int trie_free (void *trie);
 int trie_push (void *trie, const char *key);
 const char *trie_find (const void *trie, const char *key);
+int trie_has (const void *trie, const char *key);
 int trie_print (const void *trie);
 
 #endif
