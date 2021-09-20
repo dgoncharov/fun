@@ -4,13 +4,16 @@
 #include <stdio.h>
 #include <assert.h>
 
-// Escaped percent is located in the last slot.
-enum {asciisz = 128, escaped_percent = asciisz+1};
+// Unix filenames cannot contain '\0' (slot 0) and '/' (slot 47).
+// These two slots can be used for trie's internal purposes.
+// Escaped percent is stored in slot 0.
+enum {asciisz = 128, escaped_percent = 0};
 struct trie {
-    struct trie *next[asciisz+1];
-    char *key; // The key which ends here.
+    struct trie *next[asciisz];
+    char *key; // The key which ends here. This is the key that was passed to
+               // trie_push with all escaping slashes preserved.
     unsigned end:1; // When set this node is the end of a word.
-    unsigned pattern:1; // When set the tree contains a %.
+    unsigned has_percent:1; // When set the trie contains a naked %.
 };
 
 void *trie_init (void)
@@ -44,8 +47,8 @@ int trie_push (void *trie, const char *key)
             int index = '\\';
             size_t n = strspn (k, "\\");
 printf("*k=%c, n=%lu, n/2=%lu, n%%2=%lu\n", *k, n, n/2, n%2);
-            k += n - 1;
-            c = *(k+1);
+            k += n - 1; // Skip the slashes.
+            c = *(k+1); // Next char.
 printf("c=%c\n", c);
             // gmake allows multiple % in a rule, as long as first is naked and
             // the others are escaped.
@@ -75,7 +78,7 @@ printf("c=%c\n", c);
                 if (n % 2) {
 printf("escaped %%\n");
                     index = escaped_percent;
-                    root->pattern = 1;
+                    root->has_percent = 1;
                 } else {
 printf("naked %%\n");
                     index = '%';
@@ -104,7 +107,7 @@ printf("next k = %c\n", *k);
                 // The caller should print an error message and terminate.
                 return -1;
             stored_naked_percent = 1;
-            root->pattern = 1;
+            root->has_percent = 1;
         }
         index = *k;
         if (tr->next[index] == 0)
@@ -141,7 +144,7 @@ const struct trie *trie_find_imp (const struct trie *trie, const char *key, int 
         return 0;
     }
 
-    index = *key == '%' ? escaped_percent : (int) *key;
+    index = *key == '%' ? escaped_percent : *key;
     next = tr->next[index];
     for (int k = depth; k; --k)
         printf(" ");
@@ -233,7 +236,7 @@ int trie_has_imp (const struct trie *trie, const char *key,
         return tr->end;
 }
 
-    index = *key == '%' ? escaped_percent : (int) *key;
+    index = *key == '%' ? escaped_percent : *key;
     next = tr->next[index];
     for (int k = depth; k; --k)
         printf(" ");
