@@ -89,7 +89,7 @@ int run_test (long test)
         ASSERT (key == 0, "key = %s\n", key);
         break;
     case 6:
-        // Test that explicit match beats fuzzy match.
+        // Test that explicit match beats pattern match.
         trie_push (trie, "h%llo.o");
         trie_push (trie, "hello.o");
         rc = trie_has (trie, "hello.o");
@@ -158,8 +158,6 @@ int run_test (long test)
         ASSERT (strcmp (key, "h%llo.o") == 0, "key = %s\n", key);
         break;
     case 10:
-        // The key to find contains a %.
-        ASSERT (!"implement this test");
         break;
     case 11:
         // Test that pushing a key more than once has no effect.
@@ -227,6 +225,155 @@ int run_test (long test)
         free (key);
         break;
     }
+    case 14:
+        // The target contains a naked %.
+        trie_push (trie, "hello.o");
+
+        rc = trie_has (trie, "he%lo.o");
+        ASSERT (rc == 0);
+        key = trie_find (trie, "he%lo.o");
+        ASSERT (key == 0, "key = %s\n", key);
+        break;
+    case 15:
+        // A pattern contains an escaped %.
+        // The compiler removes the first slash. Trie uses to seconds slash to
+        // escape the following %.
+        // "he%lo.o" is pushed with percent matching '%' only.
+        trie_push (trie, "he\\%lo.o");
+
+        rc = trie_has (trie, "hello.o");
+        ASSERT (rc == 0);
+        key = trie_find (trie, "hello.o");
+        ASSERT (key == 0, "key = %s\n", key);
+        break;
+    case 16:
+        // A pattern contains an escaped %.
+        // The compiler removes the first slash. Trie uses the seconds slash to
+        // escape the following %.
+        // "he%lo.o" is pushed with percent matching '%' only.
+        // The target contains a %.
+        trie_push (trie, "he\\%lo.o");
+
+        rc = trie_has (trie, "he%lo.o");
+        ASSERT (rc);
+        key = trie_find (trie, "he%lo.o");
+        ASSERT (strcmp (key, "he\\%lo.o") == 0, "key = %s\n", key);
+        break;
+    case 17:
+        // A pattern contains an escaped %.
+        // The compiler removes the first slash. Trie uses to seconds slash to
+        // escape the following %.
+        // "he%lo.o" is pushed with percent matching '%' only.
+        // The target contains a slash followed by a %.
+        trie_push (trie, "he\\%lo.o");
+
+        rc = trie_has (trie, "he\\%lo.o");
+        ASSERT (rc == 0);
+        key = trie_find (trie, "he\\%lo.o");
+        ASSERT (key == 0, "key = %s\n", key);
+        break;
+    case 18:
+        // A pattern contains an escaped %.
+        // The compiler removes the first slash. Trie uses to seconds slash to
+        // escape the following %.
+        // "he%lo.o" is pushed with percent matching '%' only.
+        // The target to lookup is "he\%lo.o", which does not match.
+        trie_push (trie, "he\\%lo.o");
+
+        rc = trie_has (trie, "he\\%lo.o");
+        ASSERT (rc == 0);
+        key = trie_find (trie, "he\\%lo.o");
+        ASSERT (key == 0, "key = %s\n", key);
+        break;
+    case 19:
+        // A pattern contains an escaped \, followed by %.
+        // The compiler removes 2 slashes and "he\\%lo.o" is pushed.
+        // In this pattern trie uses the 1st slash to escape the second slash
+        // and percent is not escaped.
+        // "he\%lo.o" is pushed.
+        // % matches any char(s).
+        trie_push (trie, "he\\\\%lo.o");
+
+        rc = trie_has (trie, "he\\alo.o");
+        ASSERT (rc);
+        key = trie_find (trie, "he\\alo.o");
+        ASSERT (strcmp (key, "he\\\\%lo.o") == 0, "key = %s\n", key);
+        break;
+    case 20:
+        // The pattern contains \\, followed by %.
+        // The compiler removes 4 slashes and passes "he\\\\%lo.o" to trie_push.
+        // In this pattern trie uses the 1st slash to escape the second slash
+        // and the 3rd slash to escape the 4th slash and percent is not escaped.
+        // "he\\%lo.o" is pushed.
+        // % matches any char(s).
+        trie_push (trie, "he\\\\\\\\%lo.o");
+
+        rc = trie_has (trie, "he\\\\alo.o");
+        ASSERT (rc);
+        key = trie_find (trie, "he\\\\alo.o");
+        ASSERT (strcmp (key, "he\\\\\\\\%lo.o") == 0, "key = %s\n", key);
+        break;
+    case 21:
+        // A pattern contains an escaped \, followed by an escaped %.
+        // The compiler removes 3 slashes and passes "he\\\%lo.o" to trie_push.
+        // In this pattern trie uses the 1st slash to escape the second slash
+        // and the 3rd slash to escape %.
+        // "he\%lo.o" is pushed.
+        // % matches '%' only.
+        trie_push (trie, "he\\\\\\%lo.o");
+
+        rc = trie_has (trie, "he\\aaalo.o");
+        ASSERT (rc == 0);
+        key = trie_find (trie, "he\\aaalo.o");
+        ASSERT (key == 0, "key = %s\n", key);
+
+        rc = trie_has (trie, "he\\%lo.o");
+        ASSERT (rc);
+        key = trie_find (trie, "he\\%lo.o");
+        ASSERT (strcmp (key, "he\\\\\\%lo.o") == 0, "key = %s\n", key);
+        break;
+    case 22:
+        // A sole backslash. Not followed by a %.
+        trie_push (trie, "he\\lo.o");
+
+        rc = trie_has (trie, "he\\lo.o");
+        ASSERT (rc);
+        key = trie_find (trie, "he\\lo.o");
+        ASSERT (strcmp (key, "he\\lo.o") == 0, "key = %s\n", key);
+        break;
+    case 23:
+        // Two backslashes. Not followed by a %.
+        trie_push (trie, "he\\\\lo.o");
+
+        rc = trie_has (trie, "he\\\\lo.o");
+        ASSERT (rc);
+        key = trie_find (trie, "he\\\\lo.o");
+        ASSERT (strcmp (key, "he\\\\lo.o") == 0, "key = %s\n", key);
+        break;
+    case 24:
+        // A trailing backslash. Not followed by a %.
+        trie_push (trie, "hello.\\");
+
+        rc = trie_has (trie, "hello.\\");
+        ASSERT (rc);
+        key = trie_find (trie, "hello.\\");
+        ASSERT (strcmp (key, "hello.\\") == 0, "key = %s\n", key);
+        break;
+    case 25:
+        // Two trailing backslashes. Not followed by a %.
+        trie_push (trie, "hello.\\\\");
+
+        rc = trie_has (trie, "hello.\\\\");
+        ASSERT (rc);
+        key = trie_find (trie, "hello.\\\\");
+        ASSERT (strcmp (key, "hello.\\\\") == 0, "key = %s\n", key);
+        break;
+    case 26:
+        // Multiple naked %.
+        break;
+    case 27:
+        // One naked and multiple escaped %.
+        break;
     default:
         status = -1;
         break;
