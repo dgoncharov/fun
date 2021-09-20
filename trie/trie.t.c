@@ -370,9 +370,13 @@ int run_test (long test)
         break;
     case 26:
         // Multiple naked %.
+        rc = trie_push (trie, "he%llo%");
+        ASSERT (rc == -1);
         break;
     case 27:
         // One naked and multiple escaped %.
+        rc = trie_push (trie, "he%llo\\%.\\%");
+        ASSERT (rc == 0);
         break;
     default:
         status = -1;
