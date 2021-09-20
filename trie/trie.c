@@ -296,10 +296,16 @@ char *print (const struct trie *trie, char *buf, ssize_t buflen, off_t off)
     }
     for (size_t k = 0; k < asciisz; ++k)
         if (tr->next[k]) {
-            if (buflen < off) {
-                buflen *= 2;
+            // Add extra 8 chars, because off+1 is passed to print at the end
+            // of this if check and if tr->end is set, then buf[off] is
+            // assigned '\0'.
+            if (buflen <= off + 8) {
+                while (buflen <= off + 8)
+                    buflen *= 2;
+                assert(buflen > off + 8);
                 buf = realloc (buf, buflen);
             }
+            assert(buflen > off + 8);
             buf[off] = (char) k;
             buf = print (tr->next[k], buf, buflen, off+1);
         }
