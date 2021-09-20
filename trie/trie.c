@@ -4,9 +4,10 @@
 #include <stdio.h>
 #include <assert.h>
 
-enum {asciisz = 128};
+// Escaped percent is located in the last slot.
+enum {asciisz = 128, escaped_percent = asciisz+1};
 struct trie {
-    struct trie *next[asciisz];
+    struct trie *next[asciisz+1];
     char *key; // The key which ends here.
     unsigned end:1; // When set this node is the end of a word.
     unsigned pattern:1; // When set the tree contains a %.
@@ -34,13 +35,81 @@ int trie_push (void *trie, const char *key)
     struct trie *tr = trie;
     int index;
     size_t klen;
+    // On any iteration if slash is set this means an odd number of immediately
+    // preceding slashes.
+    int stored_naked_percent = 0;
     for (const char *k = key; *k; ++k) {
+        if (*k == '\\') {
+            char c;
+            int index = '\\';
+            size_t n = strspn (k, "\\");
+printf("*k=%c, n=%lu, n/2=%lu, n%%2=%lu\n", *k, n, n/2, n%2);
+            k += n - 1;
+            c = *(k+1);
+printf("c=%c\n", c);
+            // gmake allows multiple % in a rule, as long as first is naked and
+            // the others are escaped.
+            if (c == '%') {
+                if (stored_naked_percent && n % 2 == 0) {
+                    // Malformed key with multiple naked %.
+                    // The caller should print an error message and terminate.
+                    return -1;
+                }
+                // The slashes are immediately followed by a '%'.
+                // Each odd slash escapes immediately following even slash.
+                //
+                // If number of slashes is odd, then the last slash escapes the
+                // %. Push half of the slashes and an escaped %.
+                //
+                // If the number of slashes is even, then the % is not escaped.
+                // Push half of the slashes and the % (not escaped).
+
+                // Push half of the slashes.
+                for (size_t j = n/2; j > 0; --j) {
+                    if (tr->next[index] == 0)
+                        tr->next[index] = calloc (1, sizeof (struct trie));
+                    tr = tr->next[index];
+                }
+
+                // Push escaped or naked %.
+                if (n % 2) {
+printf("escaped %%\n");
+                    index = escaped_percent;
+                    root->pattern = 1;
+                } else {
+printf("naked %%\n");
+                    index = '%';
+                    stored_naked_percent = 1;
+                }
+
+                if (tr->next[index] == 0)
+                    tr->next[index] = calloc (1, sizeof (struct trie));
+                tr = tr->next[index];
+                ++k; // Advance k, because we pushed the %.
+printf("next k = %c\n", *k);
+                continue;
+            }
+            // The slashes are not immediately followed by a '%'.
+            // None of these slashes escapes another slash or %. Push them all.
+            for (; n > 0; --n) {
+                if (tr->next[index] == 0)
+                    tr->next[index] = calloc (1, sizeof (struct trie));
+                tr = tr->next[index];
+            }
+            continue;
+        }
+        if (*k == '%') {
+            if (stored_naked_percent == 1)
+                // Malformed key with multiple naked %.
+                // The caller should print an error message and terminate.
+                return -1;
+            stored_naked_percent = 1;
+            root->pattern = 1;
+        }
         index = *k;
         if (tr->next[index] == 0)
             tr->next[index] = calloc (1, sizeof (struct trie));
         tr = tr->next[index];
-        if (*k == '%')
-            root->pattern = 1;
     }
     tr->end = 1;
     klen = strlen (key) + 1; // + 1 for null terminator.
@@ -56,6 +125,7 @@ const struct trie *trie_find_imp (const struct trie *trie, const char *key, int 
 {
     const struct trie *tr = trie;
     const struct trie *next;
+    int index;
 
 
     if (*key == '\0') {
@@ -71,7 +141,8 @@ const struct trie *trie_find_imp (const struct trie *trie, const char *key, int 
         return 0;
     }
 
-    next = tr->next[(int) *key];
+    index = *key == '%' ? escaped_percent : (int) *key;
+    next = tr->next[index];
     for (int k = depth; k; --k)
         printf(" ");
     printf("key=%s, matching_pattern=%d, pattern_used=%d, next[%c]=%p\n", key, matching_pattern, pattern_used, *key, next);
@@ -153,7 +224,7 @@ int trie_has_imp (const struct trie *trie, const char *key,
 {
     const struct trie *tr = trie;
     const struct trie *next;
-
+    int index;
 
     if (*key == '\0') {
         for (int k = depth; k; --k)
@@ -162,7 +233,8 @@ int trie_has_imp (const struct trie *trie, const char *key,
         return tr->end;
 }
 
-    next = tr->next[(int) *key];
+    index = *key == '%' ? escaped_percent : (int) *key;
+    next = tr->next[index];
     for (int k = depth; k; --k)
         printf(" ");
 printf("key=%s, matching_pattern=%d, pattern_used=%d, next[%c]=%p\n", key, matching_pattern, pattern_used, *key, next);
