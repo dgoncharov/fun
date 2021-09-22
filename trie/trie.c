@@ -12,7 +12,7 @@ enum {asciisz = 128, escaped_percent = 0};
 struct trie {
     struct trie *next[asciisz];
     char *key; // The key which ends here. This is the key that was passed to
-               // trie_push with all escaping slashes preserved.
+               // trie_push intact with all escaping backslashes preserved.
     unsigned end:1; // When set this node is the end of a word.
     unsigned has_percent:1; // When set the trie contains a naked %.
 };
@@ -39,8 +39,6 @@ int trie_push (void *trie, const char *key)
     struct trie *tr = trie;
     int index;
     size_t klen;
-    // On any iteration if slash is set this means an odd number of immediately
-    // preceding slashes.
     int stored_naked_percent = 0;
     for (const char *k = key; *k; ++k) {
         if (*k == '\\') {
@@ -48,7 +46,7 @@ int trie_push (void *trie, const char *key)
             int index = '\\';
             size_t n = strspn (k, "\\");
 printf("*k=%c, n=%lu, n/2=%lu, n%%2=%lu\n", *k, n, n/2, n%2);
-            k += n - 1; // Skip the slashes.
+            k += n - 1; // Skip the backslashes.
             c = *(k+1); // Next char.
 printf("c=%c\n", c);
             // gmake allows multiple % in a rule, as long as first is naked and
@@ -59,16 +57,19 @@ printf("c=%c\n", c);
                     // The caller should print an error message and terminate.
                     return -1;
                 }
-                // The slashes are immediately followed by a '%'.
-                // Each odd slash escapes immediately following even slash.
+                // The backslashes are immediately followed by a '%'.
+                // Each odd backslash escapes immediately following even
+                // backslash.
                 //
-                // If number of slashes is odd, then the last slash escapes the
-                // %. Push half of the slashes and an escaped %.
+                // If number of backslashes is odd, then the last backslash
+                // escapes the %. Push half of the backslashes and an escaped
+                // %.
                 //
-                // If the number of slashes is even, then the % is not escaped.
-                // Push half of the slashes and the % (not escaped).
+                // If the number of backslashes is even, then the % is not
+                // escaped.  Push half of the backslashes and the % (not
+                // escaped).
 
-                // Push half of the slashes.
+                // Push half of the backslashes.
                 for (size_t j = n/2; j > 0; --j) {
                     if (tr->next[index] == 0)
                         tr->next[index] = calloc (1, sizeof (struct trie));
@@ -93,8 +94,9 @@ printf("naked %%\n");
 printf("next k = %c\n", *k);
                 continue;
             }
-            // The slashes are not immediately followed by a '%'.
-            // None of these slashes escapes another slash or %. Push them all.
+            // The backslashes are not immediately followed by a '%'.
+            // None of these backslashes escapes another backslash or %. Push
+            // them all.
             for (; n > 0; --n) {
                 if (tr->next[index] == 0)
                     tr->next[index] = calloc (1, sizeof (struct trie));
@@ -321,6 +323,7 @@ char *print (const struct trie *trie, char *buf, ssize_t buflen, off_t off)
 
 int trie_print (const void *trie)
 {
+//TODO: use a bigger initial value. e.g. 32.
     const size_t n = 2;
     char *buf = malloc (n);
     buf = print (trie, buf, n, 0);
