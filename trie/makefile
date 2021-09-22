@@ -1,11 +1,11 @@
-MAKEFLAGS+=-Rr
+MAKEFLAGS+=-r
 SHELL:=/bin/bash
 .ONESHELL:
 .SECONDEXPANSION:
 
+# This makefile expects to find the sources in the parent directory.
 srcdir:=..
 vpath %.c $(srcdir)
-vpath %.h $(srcdir)
 
 target:=trie.t.tsk
 obj:=trie.o trie.t.o
@@ -13,25 +13,40 @@ dfiles:=$(obj:.o=.d)
 .SECONDARY: $(obj)
 .NOTINTERMEDIATE: $(dfiles) %.h
 
-asan_flags:=-fsanitize=address -fsanitize=pointer-compare -fsanitize=leak -fsanitize=undefined
+asan_flags:=-fsanitize=address -fsanitize=pointer-compare -fsanitize=leak\
+  -fsanitize=undefined -fsanitize=pointer-subtract
 all_ldflags:=-Wl,--hash-style=gnu $(asan_flags) $(LDFLAGS)
 all: $(target)
 $(target): $(obj)
-	gcc -o $@ $(all_ldflags) $^
+	$(CC) -o $@ $(all_ldflags) $^
 
+# no-omit-frame-pointer to have proper backtrace.
+# no-common to let asan instrument global variables.
+# The options are gcc specific.
+# The expected format of the generated .d files is the one used by gcc.
 all_cppflags:=-I$(srcdir) $(CPPFLAGS)
-all_cflags:=-Wall -Wextra -Werror -ggdb -O0 -m64 $(asan_flags) $(CFLAGS)
+all_cflags:=-Wall -Wextra -Werror -ggdb -O0 -m64\
+  -fno-omit-frame-pointer\
+  -fno-common\
+  $(asan_flags) $(CFLAGS)
 
 %.o: %.c %.d $$(file <%.d)
-	gcc $(all_cppflags) $(all_cflags) -MMD -MF $*.td -o $@ -c $<
+	$(CC) $(all_cppflags) $(all_cflags) -MMD -MF $*.td -o $@ -c $<
 	read obj src headers <$*.td; echo "$$headers" >$*.d
 	touch -c $@
 
 $(dfiles):;
 %.h:;
 
+asanopts:=detect_stack_use_after_return=1 detect_invalid_pointer_pairs=2
+check:
+	ASAN_OPTIONS='$(asanopts)' ./$(target)
+
 clean:
 	rm -f $(target) $(obj) $(dfiles) $(obj:.o=.td)
 
-.PHONY: all clean
+print-%: force
+	$(info $*=$($*))
+
+.PHONY: all clean force check
 makefile::;
