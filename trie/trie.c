@@ -5,7 +5,8 @@
 #include <assert.h>
 
 // Unix filenames cannot contain '\0' (slot 0) and '/' (slot 47).
-// These two slots can be used for trie's internal purposes.
+// Keys which trie accepts can contain a slash though. e.g. "obj/hello.o".
+// This leaves slot 0 for trie's internal purposes.
 // Escaped percent is stored in slot 0.
 enum {asciisz = 128, escaped_percent = 0};
 struct trie {
@@ -115,9 +116,15 @@ printf("next k = %c\n", *k);
         tr = tr->next[index];
     }
     tr->end = 1;
-    klen = strlen (key) + 1; // + 1 for null terminator.
-    tr->key = malloc (klen);
-    memcpy (tr->key, key, klen);
+    assert (tr->key == 0 || strcmp (tr->key, key) == 0);
+    if (tr->key == 0) {
+        // Pushing the same key multiple times is allowed, even though
+        // pointless.
+        // If tr->key is set, that means this key was already pushed earlier.
+        klen = strlen (key) + 1; // + 1 for null terminator.
+        tr->key = malloc (klen);
+        memcpy (tr->key, key, klen);
+    }
 printf("pushed %s\n", key);
     return 0;
 }
