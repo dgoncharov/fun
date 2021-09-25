@@ -11,7 +11,6 @@ target:=trie.t.tsk
 obj:=trie.o trie.t.o
 dfiles:=$(obj:.o=.d)
 .SECONDARY: $(obj)
-.NOTINTERMEDIATE: $(dfiles) %.h
 
 asan_flags:=-fsanitize=address -fsanitize=pointer-compare -fsanitize=leak\
   -fsanitize=undefined -fsanitize=pointer-subtract
