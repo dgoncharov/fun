@@ -48,4 +48,4 @@ print-%: force
 	$(info $*=$($*))
 
 .PHONY: all clean force check
-makefile::;
+$(srcdir)/makefile::;
