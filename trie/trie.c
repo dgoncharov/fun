@@ -42,16 +42,18 @@ int trie_push (void *trie, const char *key)
     int stored_naked_percent = 0;
     for (const char *k = key; *k; ++k) {
         if (*k == '\\') {
+            // This whole if-block is dedicated to reading this backslash.
             char c;
             int index = '\\';
             size_t n = strspn (k, "\\");
-printf("*k=%c, n=%lu, n/2=%lu, n%%2=%lu\n", *k, n, n/2, n%2);
+            printf("*k=%c, n=%lu, n/2=%lu, n%%2=%lu\n", *k, n, n/2, n%2);
             k += n - 1; // Skip the backslashes.
             c = *(k+1); // Next char.
-printf("c=%c\n", c);
+            printf("c=%c\n", c);
             // gmake allows multiple % in a rule, as long as first is naked and
             // the others are escaped.
             if (c == '%') {
+                // This whole if-block is dedicated to reading this percent.
                 if (stored_naked_percent && n % 2 == 0) {
                     // Malformed key with multiple naked %.
                     // The caller should print an error message and terminate.
@@ -78,11 +80,11 @@ printf("c=%c\n", c);
 
                 // Push escaped or naked %.
                 if (n % 2) {
-printf("escaped %%\n");
+                    printf("escaped %%\n");
                     index = escaped_percent;
                     root->has_percent = 1;
                 } else {
-printf("naked %%\n");
+                    printf("naked %%\n");
                     index = '%';
                     stored_naked_percent = 1;
                 }
@@ -91,7 +93,7 @@ printf("naked %%\n");
                     tr->next[index] = calloc (1, sizeof (struct trie));
                 tr = tr->next[index];
                 ++k; // Advance k, because we pushed the %.
-printf("next k = %c\n", *k);
+                printf("next k = %c\n", *k);
                 continue;
             }
             // The backslashes are not immediately followed by a '%'.
@@ -104,6 +106,7 @@ printf("next k = %c\n", *k);
             }
             continue;
         }
+        // Not a backslash.
         if (*k == '%') {
             if (stored_naked_percent == 1)
                 // Malformed key with multiple naked %.
@@ -127,7 +130,7 @@ printf("next k = %c\n", *k);
         tr->key = malloc (klen);
         memcpy (tr->key, key, klen);
     }
-printf("pushed %s\n", key);
+    printf("pushed %s\n", key);
     return 0;
 }
 
@@ -243,48 +246,47 @@ int trie_has_imp (const struct trie *trie, const char *key,
             printf(" ");
         printf("key exhausted, tr->end = %d\n", tr->end);
         return tr->end;
-}
+    }
 
     index = *key == '%' ? escaped_percent : *key;
     next = tr->next[index];
     for (int k = depth; k; --k)
         printf(" ");
-printf("key=%s, matching_pattern=%d, pattern_used=%d, next[%c]=%p\n", key, matching_pattern, pattern_used, *key, next);
+    printf("key=%s, matching_pattern=%d, pattern_used=%d, next[%c]=%p\n", key, matching_pattern, pattern_used, *key, next);
     if (next && trie_has_imp (next, key+1, 0, pattern_used, depth+1)) {
         for (int k = depth; k; --k)
             printf(" ");
-
-printf("found by %c\n", *key);
+        printf("found by %c\n", *key);
         return 1;
     }
     if (matching_pattern) {
         for (int k = depth; k; --k)
             printf(" ");
-printf("matching %c to %%\n", *key);
+        printf("matching %c to %%\n", *key);
         return trie_has_imp (trie, key+1, 1, pattern_used, depth+1);
-}
+    }
     if (pattern_used) {
         for (int k = depth; k; --k)
             printf(" ");
-printf("pattern was already used, fail\n");
+        printf("pattern was already used, fail\n");
         return 0;
-}
-        for (int k = depth; k; --k)
-            printf(" ");
-printf("trying %%\n");
+    }
+    for (int k = depth; k; --k)
+        printf(" ");
+    printf("trying %%\n");
     next = tr->next['%'];
-        for (int k = depth; k; --k)
-            printf(" ");
-printf("    next[%%]=%p\n", next);
+    for (int k = depth; k; --k)
+        printf(" ");
+    printf("    next[%%]=%p\n", next);
     if (next == 0) {
         for (int k = depth; k; --k)
             printf(" ");
-printf("pattern not found, fail\n");
+        printf("pattern not found, fail\n");
         return 0;
-}
-        for (int k = depth; k; --k)
-            printf(" ");
-printf("found %%\n");
+    }
+    for (int k = depth; k; --k)
+        printf(" ");
+    printf("found %%\n");
     return trie_has_imp (next, key+1, 1, 1, depth+1);
 }
 
@@ -323,7 +325,7 @@ char *print (const struct trie *trie, char *buf, ssize_t buflen, off_t off)
 
 int trie_print (const void *trie)
 {
-//TODO: use a bigger initial value. e.g. 32.
+//TODO: use a bigger initial value. e.g. 128.
     const size_t n = 2;
     char *buf = malloc (n);
     buf = print (trie, buf, n, 0);
