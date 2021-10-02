@@ -16,6 +16,7 @@ int run_test (long test)
     switch (test) {
     case 0:
         // Test lookup in an empty trie.
+        // Also test trie_print with an empty trie.
         rc = trie_has (trie, "hello.o");
         ASSERT (rc == 0);
         key = trie_find (trie, "hello.o");
@@ -74,7 +75,7 @@ int run_test (long test)
         ASSERT (strcmp (key, "hello") == 0, "key = %s\n", key);
         break;
     case 4:
-        // Test trie_print with an empty trie.
+        // Reserved.
         break;
     case 5:
         // Test multiple patterns, none of which matches.
