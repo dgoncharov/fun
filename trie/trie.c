@@ -145,42 +145,30 @@ const struct trie *trie_find_imp (const struct trie *trie, const char *key, int 
 
     if (*key == '\0') {
         if (tr->key) {
-            for (int k = depth; k; --k)
-                printf(" ");
-            printf("found pattern %s\n", tr->key);
+            printf("%*sfound pattern %s\n", depth, "", tr->key);
             return tr;
         }
-        for (int k = depth; k; --k)
-            printf(" ");
-        printf("exhaused key, fail\n");
+        printf("%*sexhaused key, fail\n", depth, "");
         return 0;
     }
 
     index = *key == '%' ? escaped_percent : *key;
     next = tr->next[index];
-    for (int k = depth; k; --k)
-        printf(" ");
-    printf("key=%s, matching_pattern=%d, pattern_used=%d, next[%c]=%p\n", key, matching_pattern, pattern_used, *key, next);
+    printf("%*skey=%s, matching_pattern=%d, pattern_used=%d, next[%c]=%p\n", depth, "", key, matching_pattern, pattern_used, *key, next);
     if (next && (next = trie_find_imp (next, key+1, 0, pattern_used, depth+1))) {
         const struct trie *alt;
         size_t klen, alen;
-        for (int k = depth; k; --k)
-            printf(" ");
-        printf("found by %c\n", *key);
+        printf("%*sfound by %c\n", depth, "", *key);
         if (pattern_used)
             return next;
-        for (int k = depth; k; --k)
-            printf(" ");
-        printf ("trying alternative %%, key = %s\n", key);
+        printf ("%*strying alternative %%, key = %s\n", depth, "", key);
         alt = tr->next['%'];
         if (alt == 0)
             return next;
         alt = trie_find_imp (alt, key+1, 1, 1, depth+1);
         if (alt == 0)
             return next;
-        for (int k = depth; k; --k)
-            printf(" ");
-        printf ("found alternative %%, key = %s, alt->key=%s, next->key=%s\n", key, alt->key, next->key);
+        printf ("%*sfound alternative %%, key = %s, alt->key=%s, next->key=%s\n", depth, "", key, alt->key, next->key);
         /* alt->key contains a %. next->key may or may not contain a %.
          * If alt-key is longer than next->key, next->key also contains a %.
          * Otherwise, next-key would not match.
@@ -195,33 +183,21 @@ const struct trie *trie_find_imp (const struct trie *trie, const char *key, int 
         return alen > klen ? alt : next;
     }
     if (matching_pattern) {
-        for (int k = depth; k; --k)
-            printf(" ");
-        printf("matching %c to %%\n", *key);
+        printf("%*smatching %c to %%\n", depth, "", *key);
         return trie_find_imp (trie, key+1, 1, pattern_used, depth+1);
     }
     if (pattern_used) {
-        for (int k = depth; k; --k)
-            printf(" ");
-        printf("pattern was already used, fail\n");
+        printf("%*spattern was already used, fail\n", depth, "");
         return 0;
     }
-    for (int k = depth; k; --k)
-        printf(" ");
-    printf("trying %%\n");
+    printf("%*strying %%\n", depth, "");
     next = tr->next['%'];
-    for (int k = depth; k; --k)
-        printf(" ");
-    printf("next[%%]=%p\n", next);
+    printf("%*snext[%%]=%p\n", depth, "", next);
     if (next == 0) {
-        for (int k = depth; k; --k)
-            printf(" ");
-        printf("pattern not found, fail\n");
+        printf("%*spattern not found, fail\n", depth, "");
         return 0;
     }
-    for (int k = depth; k; --k)
-        printf(" ");
-    printf("found %%\n");
+    printf("%*sfound %%\n", depth, "");
     return trie_find_imp (next, key+1, 1, 1, depth+1);
 }
 
@@ -242,51 +218,33 @@ int trie_has_imp (const struct trie *trie, const char *key,
     int index;
 
     if (*key == '\0') {
-        for (int k = depth; k; --k)
-            printf(" ");
-        printf("key exhausted, tr->end = %d\n", tr->end);
+        printf("%*skey exhausted, tr->end = %d\n", depth, "", tr->end);
         return tr->end;
     }
 
     index = *key == '%' ? escaped_percent : *key;
     next = tr->next[index];
-    for (int k = depth; k; --k)
-        printf(" ");
-    printf("key=%s, matching_pattern=%d, pattern_used=%d, next[%c]=%p\n", key, matching_pattern, pattern_used, *key, next);
+    printf("%*skey=%s, matching_pattern=%d, pattern_used=%d, next[%c]=%p\n", depth, "", key, matching_pattern, pattern_used, *key, next);
     if (next && trie_has_imp (next, key+1, 0, pattern_used, depth+1)) {
-        for (int k = depth; k; --k)
-            printf(" ");
-        printf("found by %c\n", *key);
+        printf("%*sfound by %c\n", depth, "", *key);
         return 1;
     }
     if (matching_pattern) {
-        for (int k = depth; k; --k)
-            printf(" ");
-        printf("matching %c to %%\n", *key);
+        printf("%*smatching %c to %%\n", depth, "", *key);
         return trie_has_imp (trie, key+1, 1, pattern_used, depth+1);
     }
     if (pattern_used) {
-        for (int k = depth; k; --k)
-            printf(" ");
-        printf("pattern was already used, fail\n");
+        printf("%*spattern was already used, fail\n", depth, "");
         return 0;
     }
-    for (int k = depth; k; --k)
-        printf(" ");
-    printf("trying %%\n");
+    printf("%*strying %%\n", depth, "");
     next = tr->next['%'];
-    for (int k = depth; k; --k)
-        printf(" ");
-    printf("    next[%%]=%p\n", next);
+    printf("%*snext[%%]=%p\n", depth, "", next);
     if (next == 0) {
-        for (int k = depth; k; --k)
-            printf(" ");
-        printf("pattern not found, fail\n");
+        printf("%*spattern not found, fail\n", depth, "");
         return 0;
     }
-    for (int k = depth; k; --k)
-        printf(" ");
-    printf("found %%\n");
+    printf("%*sfound %%\n", depth, "");
     return trie_has_imp (next, key+1, 1, 1, depth+1);
 }
 
