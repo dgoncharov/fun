@@ -75,7 +75,18 @@ int run_test (long test)
         ASSERT (strcmp (key, "hello") == 0, "key = %s\n", key);
         break;
     case 4:
-        // Reserved.
+        // A pathological case of near matches.
+        trie_push (trie, "hella");
+        trie_push (trie, "hel%a");
+        trie_push (trie, "he%a");
+        trie_push (trie, "h%a");
+        trie_push (trie, "%a");
+        trie_push (trie, "%");
+
+        rc = trie_has (trie, "hello");
+        ASSERT (rc);
+        key = trie_find (trie, "hello");
+        ASSERT (strcmp (key, "%") == 0, "key = %s\n", key);
         break;
     case 5:
         // Test multiple patterns, none of which matches.
