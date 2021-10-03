@@ -210,7 +210,7 @@ const char *trie_find (const void *trie, const char *key)
 }
 
 static
-int trie_has_imp (const struct trie *trie, const char *key,
+int trie_has_prefer_exact_match (const struct trie *trie, const char *key,
                   int matching_wildcard, int wildcard_used, int depth)
 {
     const struct trie *tr = trie;
@@ -225,13 +225,13 @@ int trie_has_imp (const struct trie *trie, const char *key,
     index = *key == '%' ? escaped_percent : *key;
     next = tr->next[index];
     printf("%*skey=%s, matching_wildcard=%d, wildcard_used=%d, next[%c]=%p\n", depth, "", key, matching_wildcard, wildcard_used, *key, next);
-    if (next && trie_has_imp (next, key+1, 0, wildcard_used, depth+1)) {
+    if (next && trie_has_prefer_exact_match (next, key+1, 0, wildcard_used, depth+1)) {
         printf("%*s%c is found\n", depth, "", *key);
         return 1;
     }
     if (matching_wildcard) {
         printf("%*smatched %c to %%\n", depth, "", *key);
-        return trie_has_imp (trie, key+1, 1, wildcard_used, depth+1);
+        return trie_has_prefer_exact_match (trie, key+1, 1, wildcard_used, depth+1);
     }
     if (wildcard_used) {
         printf("%*s%% was already used, backtrack key\n", depth, "");
@@ -244,15 +244,62 @@ int trie_has_imp (const struct trie *trie, const char *key,
         return 0;
     }
     printf("%*smatching %c to %%\n", depth, "", *key);
-    return trie_has_imp (next, key+1, 1, 1, depth+1);
+    return trie_has_prefer_exact_match (next, key+1, 1, 1, depth+1);
+}
+
+// trie_has_prefer_exact_match2 prefers fuzzy to exact match.
+static
+int trie_has_prefer_fuzzy_match (const struct trie *trie, const char *key,
+                  int matching_wildcard, int wildcard_used, int depth)
+{
+    const struct trie *tr = trie;
+    const struct trie *next;
+    int index;
+
+    if (*key == '\0') {
+        printf("%*skey exhausted, tr->end = %d\n", depth, "", tr->end);
+        return tr->end;
+    }
+
+    if (matching_wildcard) {
+        printf("%*smatched %c to %%\n", depth, "", *key);
+        if (trie_has_prefer_fuzzy_match (trie, key+1, 1, wildcard_used, depth+1))
+            return 1;
+    } else {
+        next = tr->next['%'];
+        printf("%*snext[%%]=%p\n", depth, "", next);
+        if (next && trie_has_prefer_fuzzy_match (next, key+1, 1, 1, depth+1))
+            return 1;
+    }
+    index = *key == '%' ? escaped_percent : *key;
+    next = tr->next[index];
+    printf("%*skey=%s, next[%c]=%p\n", depth, "", key, *key, next);
+    if (next && trie_has_prefer_fuzzy_match (next, key+1, 0, 0, depth+1)) {
+        printf("%*s%c is found\n", depth, "", *key);
+        return 1;
+    }
+    return 0;
 }
 
 // Return 1 if KEY is present in TRIE.
 // Return 0 otherwise.
-int trie_has (const void *trie, const char *key)
+// trie_has_prefer_fuzzy_match tries matching each
+// character of the key to wildcard % first. If this fuzzy match fails, then
+// trie_has_prefer_fuzzy_match tries matching the character exactly.
+// trie_has_prefer_exact_match does the opposite. trie_has_prefer_exact_match
+// tries matching each character of the key exactly first. If this exact match
+// fails, then trie_has_prefer_exact_match tries matching the character fuzzy.
+// Both functions return the same result. The difference is in how fast the
+// result is found. trie_has_prefer_exact_match performs better on some
+// contents of trie, trie_has_prefer_fuzzy_match performs better on other
+// contents of trie.
+int trie_has (const void *trie, const char *key, int prefer_fuzzy_match)
 {
     int rc;
-    rc = trie_has_imp (trie, key, 0, 0, 0);
+    if (prefer_fuzzy_match)
+        rc = trie_has_prefer_fuzzy_match (trie, key, 0, 0, 0);
+    else
+        rc = trie_has_prefer_exact_match (trie, key, 0, 0, 0);
     printf ("%sfound %s\n", rc ? "" : "not ", key);
     return rc;
 }
