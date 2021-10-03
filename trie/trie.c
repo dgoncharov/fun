@@ -134,9 +134,9 @@ int trie_push (void *trie, const char *key)
     return 0;
 }
 
-//TODO: look at pattern_used and avoid checking %, if found a perfect match.
+//TODO: look at wildcard_used and avoid checking %, if found a perfect match.
 static
-const struct trie *trie_find_imp (const struct trie *trie, const char *key, int matching_pattern, int pattern_used, int depth)
+const struct trie *trie_find_imp (const struct trie *trie, const char *key, int matching_wildcard, int wildcard_used, int depth)
 {
     const struct trie *tr = trie;
     const struct trie *next;
@@ -145,7 +145,7 @@ const struct trie *trie_find_imp (const struct trie *trie, const char *key, int 
 
     if (*key == '\0') {
         if (tr->key) {
-            printf("%*sfound pattern %s\n", depth, "", tr->key);
+            printf("%*sfound %s\n", depth, "", tr->key);
             return tr;
         }
         printf("%*sexhaused key, fail\n", depth, "");
@@ -154,12 +154,12 @@ const struct trie *trie_find_imp (const struct trie *trie, const char *key, int 
 
     index = *key == '%' ? escaped_percent : *key;
     next = tr->next[index];
-    printf("%*skey=%s, matching_pattern=%d, pattern_used=%d, next[%c]=%p\n", depth, "", key, matching_pattern, pattern_used, *key, next);
-    if (next && (next = trie_find_imp (next, key+1, 0, pattern_used, depth+1))) {
+    printf("%*skey=%s, matching_wildcard=%d, wildcard_used=%d, next[%c]=%p\n", depth, "", key, matching_wildcard, wildcard_used, *key, next);
+    if (next && (next = trie_find_imp (next, key+1, 0, wildcard_used, depth+1))) {
         const struct trie *alt;
         size_t klen, alen;
         printf("%*sfound by %c\n", depth, "", *key);
-        if (pattern_used)
+        if (wildcard_used)
             return next;
         printf ("%*strying alternative %%, key = %s\n", depth, "", key);
         alt = tr->next['%'];
@@ -182,19 +182,19 @@ const struct trie *trie_find_imp (const struct trie *trie, const char *key, int 
         assert (alen <= klen || strchr (next->key, '%'));
         return alen > klen ? alt : next;
     }
-    if (matching_pattern) {
+    if (matching_wildcard) {
         printf("%*smatching %c to %%\n", depth, "", *key);
-        return trie_find_imp (trie, key+1, 1, pattern_used, depth+1);
+        return trie_find_imp (trie, key+1, 1, wildcard_used, depth+1);
     }
-    if (pattern_used) {
-        printf("%*spattern was already used, fail\n", depth, "");
+    if (wildcard_used) {
+        printf("%*swildcard was already used, fail\n", depth, "");
         return 0;
     }
     printf("%*strying %%\n", depth, "");
     next = tr->next['%'];
     printf("%*snext[%%]=%p\n", depth, "", next);
     if (next == 0) {
-        printf("%*spattern not found, fail\n", depth, "");
+        printf("%*swildcard not found, fail\n", depth, "");
         return 0;
     }
     printf("%*sfound %%\n", depth, "");
@@ -211,7 +211,7 @@ const char *trie_find (const void *trie, const char *key)
 
 static
 int trie_has_imp (const struct trie *trie, const char *key,
-                  int matching_pattern, int pattern_used, int depth)
+                  int matching_wildcard, int wildcard_used, int depth)
 {
     const struct trie *tr = trie;
     const struct trie *next;
@@ -224,27 +224,26 @@ int trie_has_imp (const struct trie *trie, const char *key,
 
     index = *key == '%' ? escaped_percent : *key;
     next = tr->next[index];
-    printf("%*skey=%s, matching_pattern=%d, pattern_used=%d, next[%c]=%p\n", depth, "", key, matching_pattern, pattern_used, *key, next);
-    if (next && trie_has_imp (next, key+1, 0, pattern_used, depth+1)) {
-        printf("%*sfound by %c\n", depth, "", *key);
+    printf("%*skey=%s, matching_wildcard=%d, wildcard_used=%d, next[%c]=%p\n", depth, "", key, matching_wildcard, wildcard_used, *key, next);
+    if (next && trie_has_imp (next, key+1, 0, wildcard_used, depth+1)) {
+        printf("%*s%c is found\n", depth, "", *key);
         return 1;
     }
-    if (matching_pattern) {
-        printf("%*smatching %c to %%\n", depth, "", *key);
-        return trie_has_imp (trie, key+1, 1, pattern_used, depth+1);
+    if (matching_wildcard) {
+        printf("%*smatched %c to %%\n", depth, "", *key);
+        return trie_has_imp (trie, key+1, 1, wildcard_used, depth+1);
     }
-    if (pattern_used) {
-        printf("%*spattern was already used, fail\n", depth, "");
+    if (wildcard_used) {
+        printf("%*s%% was already used, backtrack key\n", depth, "");
         return 0;
     }
-    printf("%*strying %%\n", depth, "");
     next = tr->next['%'];
     printf("%*snext[%%]=%p\n", depth, "", next);
     if (next == 0) {
-        printf("%*spattern not found, fail\n", depth, "");
+        printf("%*sbacktrack key\n", depth, "");
         return 0;
     }
-    printf("%*sfound %%\n", depth, "");
+    printf("%*smatching %c to %%\n", depth, "", *key);
     return trie_has_imp (next, key+1, 1, 1, depth+1);
 }
 
@@ -252,7 +251,10 @@ int trie_has_imp (const struct trie *trie, const char *key,
 // Return 0 otherwise.
 int trie_has (const void *trie, const char *key)
 {
-    return trie_has_imp (trie, key, 0, 0, 0);
+    int rc;
+    rc = trie_has_imp (trie, key, 0, 0, 0);
+    printf ("%sfound %s\n", rc ? "" : "not ", key);
+    return rc;
 }
 
 static
