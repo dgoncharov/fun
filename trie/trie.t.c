@@ -81,12 +81,12 @@ int run_test (long test)
         trie_push (trie, "he%a");
         trie_push (trie, "h%a");
         trie_push (trie, "%a");
-        trie_push (trie, "%");
+        trie_push (trie, "%lo");
 
         rc = trie_has (trie, "hello");
         ASSERT (rc);
         key = trie_find (trie, "hello");
-        ASSERT (strcmp (key, "%") == 0, "key = %s\n", key);
+        ASSERT (strcmp (key, "%lo") == 0, "key = %s\n", key);
         break;
     case 5:
         // Test multiple patterns, none of which matches.
