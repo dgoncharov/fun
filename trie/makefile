@@ -30,8 +30,8 @@ all_cflags:=-Wall -Wextra -Werror -ggdb -O0 -m64\
   $(asan_flags) $(CFLAGS)
 
 %.o: %.c %.d $$(file <%.d)
-	$(CC) $(all_cppflags) $(all_cflags) -MMD -MF $*.td -o $@ -c $<
-	read obj src headers <$*.td; echo "$$headers" >$*.d
+	$(CC) $(all_cppflags) $(all_cflags) -MMD -MF $*.td -o $@ -c $< || exit 1
+	read obj src headers <$*.td; echo "$$headers" >$*.d || exit 1
 	touch -c $@
 
 $(dfiles):;
