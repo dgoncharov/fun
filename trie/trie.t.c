@@ -3,18 +3,74 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <stdio.h>
+#include <time.h>
+#include <sys/time.h>
 
 static
-int run_test (long test)
+void gettime(struct timeval *result)
 {
     int rc;
+    rc = gettimeofday(result, 0);
+    assert (rc == 0);
+}
+
+static
+suseconds_t timediff (const struct timeval *start, const struct timeval *stop)
+{
+    suseconds_t result;
+    assert (stop->tv_sec >= start->tv_sec);
+    assert (stop->tv_sec > start->tv_sec || stop->tv_usec >= start->tv_usec);
+
+    result = (stop->tv_sec - start->tv_sec) * 1000 * 1000;
+    result += stop->tv_usec - start->tv_usec;
+    return result;
+}
+
+static
+char random_printable_char ()
+{
+    return (char) (rand() % 94 + 32);
+}
+
+static
+void randomize_trie (void *trie, int maxklen, int nkeys)
+{
+    int k, j;
+    char key[maxklen];
+
+    srand (time (0));
+    for (; nkeys > 0; nkeys -= 5) {
+        int klen = (char) (rand() % maxklen);
+        if (klen < 8)
+            klen = 8; // Atleast 8 chars long.
+        for (k = 0; k < klen - 1; ++k)
+            key[k] = random_printable_char (); // Only printable chars.
+        key[klen-1] = '\0';
+        trie_push (trie, key);
+        // Push up to 4 more keys with the same prefix.
+        for (j = nkeys > 4 ? 5 : nkeys % 5; j > 1; --j) {
+            assert (klen > j+1);
+            key[klen-1-j] = random_printable_char ();
+            trie_push (trie, key);
+        }
+    }
+}
+
+static
+int run_test (long test, int argc, char *argv[])
+{
+    int rc, size;
     const char *key;
     void *trie;
 
     printf ("test %ld\n", test);
 
     trie = trie_init ();
+    size = trie_size (trie);
+    ASSERT (size == 0, "size = %d\n", size);
+
 
     switch (test) {
     case 0:
@@ -32,6 +88,9 @@ int run_test (long test)
     case 1:
         // Test explicit match.
         trie_push (trie, "hello");
+        size = trie_size (trie);
+        ASSERT (size == 1, "size = %d\n", size);
+
         rc = trie_has (trie, "hello", 0);
         ASSERT (rc);
         rc = trie_has (trie, "hello", 1);
@@ -70,6 +129,8 @@ int run_test (long test)
         trie_push (trie, "bye");
         trie_push (trie, "h");
         trie_push (trie, "a");
+        size = trie_size (trie);
+        ASSERT (size == 12, "size = %d\n", size);
 
         rc = trie_has (trie, "hello", 0);
         ASSERT (rc == 0);
@@ -578,11 +639,41 @@ int run_test (long test)
         rc = trie_has (trie, "hello", 1);
         ASSERT (rc);
         break;
+    case -1: {
+        // Performance test.
+        // trie.t.tsk without arguments does not run this test.
+        int k, m, size;
+        const int maxklen = 64; // Max length of a key.
+        struct timeval start, stop;
+        suseconds_t duration;
+        const int nkeys = argc > 2 ? atoi (argv[2]) : 10;
+
+        gettime (&start);
+        randomize_trie (trie, maxklen, nkeys);
+        gettime (&stop);
+        size = trie_size (trie);
+
+        duration = timediff (&start, &stop);
+        printf ("building a trie of size %d took %ldus\n", size, duration);
+
+        for (k = 0; k < 2; ++k) {
+            gettime (&start);
+            for (m = 0; m < nkeys; ++m)
+                trie_has (trie, "hello", k);
+            gettime (&stop);
+
+            duration = timediff (&start, &stop);
+            printf ("%d lookups in trie of %d took %ldus, prefer fuzzy = %d\n",
+                    m, size, duration, k);
+        }
+        break;
+    }
     default:
         status = -1;
         break;
     }
-    trie_print (trie);
+    if (test >= 0)
+        trie_print (trie);
     trie_free (trie);
     return status;
 }
@@ -597,16 +688,16 @@ int main (int argc, char *argv[])
         errno = 0;
         test = strtol(argv[1], &r, 0);
         if (errno || r == argv[1]) {
-            fprintf(stderr, "usage: %s [test]\n", argv[0]);
+            fprintf(stderr, "usage: %s [test] [test arg]...\n", argv[0]);
             return 1;
         }
-        run_test (test);
+        run_test (test, argc, argv);
         if (status > 0)
             fprintf (stderr, "%d tests failed\n", status);
         return status;
     }
     // Run all tests.
-    for (int k = 0; run_test (k) != -1; ++k)
+    for (int k = 0; run_test (k, argc, argv) != -1; ++k)
             ;
     if (status > 0)
         fprintf (stderr, "%d tests failed\n", status);
