@@ -7,8 +7,8 @@ SHELL:=/bin/bash
 srcdir:=..
 vpath %.c $(srcdir)
 
-target:=trie.t.tsk
-obj:=trie.o trie.t.o
+target:=vector.t.tsk
+obj:=vector.o vector.t.o
 dfiles:=$(obj:.o=.d)
 .SECONDARY: $(obj)
 
