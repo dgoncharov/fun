@@ -11,6 +11,7 @@
 enum {asciisz = 128, escaped_percent = 0};
 struct trie {
     struct trie *next[asciisz];
+    int size; // Number of keys in this trie.
     char *key; // The key which ends here. This is the key that was passed to
                // trie_push intact with all escaping backslashes preserved.
     unsigned end:1; // When set this node is the end of a word.
@@ -40,6 +41,7 @@ int trie_push (void *trie, const char *key)
     int index;
     size_t klen;
     int stored_naked_percent = 0;
+
     for (const char *k = key; *k; ++k) {
         if (*k == '\\') {
             // This whole if-block is dedicated to reading this backslash.
@@ -129,8 +131,9 @@ int trie_push (void *trie, const char *key)
         klen = strlen (key) + 1; // + 1 for null terminator.
         tr->key = malloc (klen);
         memcpy (tr->key, key, klen);
+        ++root->size;
     }
-    printf("pushed %s\n", key);
+    printf("pushed %s, size = %d\n", key, root->size);
     return 0;
 }
 
@@ -296,12 +299,19 @@ int trie_has_prefer_fuzzy_match (const struct trie *trie, const char *key,
 int trie_has (const void *trie, const char *key, int prefer_fuzzy_match)
 {
     int rc;
+    printf ("looking for %s\n", key);
     if (prefer_fuzzy_match)
         rc = trie_has_prefer_fuzzy_match (trie, key, 0, 0, 0);
     else
         rc = trie_has_prefer_exact_match (trie, key, 0, 0, 0);
     printf ("%sfound %s\n", rc ? "" : "not ", key);
     return rc;
+}
+
+int trie_size (const void *trie)
+{
+    const struct trie *tr = trie;
+    return tr->size;
 }
 
 static
