@@ -1,7 +1,7 @@
 #ifndef _TRIE_H_
 #define _TRIE_H_
 
-void *trie_init ();
+void *trie_init (int limit);
 int trie_free (void *trie);
 int trie_push (void *trie, const char *key);
 const char *trie_find (const void *trie, const char *key);

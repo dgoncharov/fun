@@ -67,10 +67,11 @@ int run_test (long test, int argc, char *argv[])
 
     printf ("test %ld\n", test);
 
-    trie = trie_init ();
+    const int maxklen = 64; // Max length of a key.
+    const int nkeys = argc > 2 ? atoi (argv[2]) : 16;
+    trie = trie_init (maxklen * nkeys);
     size = trie_size (trie);
     ASSERT (size == 0, "size = %d\n", size);
-
 
     switch (test) {
     case 0:
@@ -643,10 +644,8 @@ int run_test (long test, int argc, char *argv[])
         // Performance test.
         // trie.t.tsk without arguments does not run this test.
         int k, m, size;
-        const int maxklen = 64; // Max length of a key.
         struct timeval start, stop;
         suseconds_t duration;
-        const int nkeys = argc > 2 ? atoi (argv[2]) : 10;
 
         gettime (&start);
         randomize_trie (trie, maxklen, nkeys);
