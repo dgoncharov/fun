@@ -267,36 +267,79 @@ int node_has_prefer_exact_match (const struct node *node, const char *key,
     return node_has_prefer_exact_match (next, key+1, 1, 1, depth+1);
 }
 
-// node_has_prefer_exact_match2 prefers fuzzy to exact match.
 static
-int node_has_prefer_fuzzy_match (const struct node *node, const char *key,
-                  int inside_wildcard, int wildcard_spent, int depth)
+int node_has_prefer_fuzzy_match (const struct node *node, const char *key, int inside_wildcard, int wildcard_spent, int depth)
 {
     const struct node *next;
     int index;
 
-    if (*key == '\0') {
-        //printf("%*skey exhausted, node->end = %d\n", depth, "", node->end);
-        return node->end;
-    }
 
-    if (inside_wildcard) {
-        //printf("%*smatched %c to %%\n", depth, "", *key);
-        if (node_has_prefer_fuzzy_match (node, key+1, 1, wildcard_spent, depth+1))
-            return 1;
-    } else {
+    //printf("%*skey = %s, inside wildcard = %d, wildcard spent = %d\n", depth, "", key, inside_wildcard, wildcard_spent);
+    // Ensure recursion is limited to 3.
+    // This function cannot afford deep recursion, because deep recursion would
+    // prevent long keys.
+    assert (depth < 3);
+    for (; *key; ++key) {
+        assert (node);
+        // First see if inside_wildcard.
+        if (inside_wildcard) {
+            //printf("%*strying %c explicitly inside wirdcard\n", depth, "", *k);
+            assert (wildcard_spent);
+            // Then see if the node has this character.
+            index = *key == '%' ? escaped_percent : *key;
+            next = node->next[index];
+            if (next) {
+                //printf("%*s%c matches\n", depth, "", *key);
+                // No more inside wildcard.
+                if (node_has_prefer_fuzzy_match (next, key+1, 0, 1, depth+1))
+                    return 1;
+            }
+            //printf("%*s%c does not match, continue inside wildcard\n", depth, "", *key);
+            // Continue inside wildcard.
+            // Keep node intact.
+            continue;
+        }
+        assert (inside_wildcard == 0);
+        // Then see if wildcard was used already.
+        if (wildcard_spent) {
+            // Not inside wildcard and wildcard was used already.
+            // Every character has to match explicitly.
+            //printf("%*strying %c explicitly outside wirdcard\n", depth, "", *key);
+            index = *key == '%' ? escaped_percent : *key;
+            next = node->next[index];
+            if (next == 0) {
+                // No match.
+                // Need to backtrack and resume from the prior fork and take
+                // the other path.
+                //printf("%*s%c does not match, wildcard used already, no match\n", depth, "", *key);
+                return 0;
+            }
+            //printf("%*s%c matches outside wildcard, continue matching explicitly\n", depth, "", *key);
+            node = next;
+            continue;
+        }
+        //printf("%*ssee if the node has a %%\n", depth, "");
+        // Not inside wildcard and wildcard is still available.
+        // Then see if the node has a wildcard.
         next = node->next['%'];
-        //printf("%*snext[%%]=%p\n", depth, "", next);
-        if (next && node_has_prefer_fuzzy_match (next, key+1, 1, 1, depth+1))
-            return 1;
+        if (next) {
+            //printf("%*sfound %%, recursing\n", depth, "");
+            if (node_has_prefer_fuzzy_match (next, key+1, 1, 1, depth+1))
+                return 1;
+        }
+        //printf("%*sno %%, matching %c explicitly\n", depth, "", *key);
+        // Then see if the node has this character.
+        index = *key == '%' ? escaped_percent : *key;
+        next = node->next[index];
+        if (next == 0)
+            return 0; // No match.
+        //printf("%*sno %%, %c matches explicitly\n", depth, "", *key);
+        node = next;
     }
-    index = *key == '%' ? escaped_percent : *key;
-    next = node->next[index];
-    //printf("%*skey=%s, next[%c]=%p\n", depth, "", key, *key, next);
-    if (next && node_has_prefer_fuzzy_match (next, key+1, 0, 0, depth+1)) {
-        //printf("%*s%c is found\n", depth, "", *key);
-        return 1;
-    }
+    //printf("%*skey exhausted\n", depth, "");
+
+    if (*key == '\0')
+        return node->end;
     return 0;
 }
 
