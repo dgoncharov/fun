@@ -279,6 +279,7 @@ int node_has_prefer_fuzzy_match (const struct node *node, const char *key, int i
     // This function cannot afford deep recursion, because deep recursion would
     // prevent long keys.
     assert (depth < 3);
+    assert (wildcard_spent || depth == 0);
     for (; *key; ++key) {
         assert (node);
         // First see if inside_wildcard.
