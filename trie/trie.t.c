@@ -61,11 +61,12 @@ void randomize_trie (void *trie, int maxklen, int nkeys)
 static
 int run_test (long test, int argc, char *argv[])
 {
-    int rc, size;
+    int rc, size, retcode;
     const char *key;
     void *trie;
 
     printf ("test %ld\n", test);
+    retcode = 0;
 
     const int maxklen = 64; // Max length of a key.
     const int nkeys = argc > 2 ? atoi (argv[2]) : 16;
@@ -670,13 +671,13 @@ int run_test (long test, int argc, char *argv[])
         break;
     }
     default:
-        status = -1;
+        retcode = -1;
         break;
     }
     if (test >= 0)
         trie_print (trie);
     trie_free (trie);
-    return status;
+    return retcode;
 }
 
 int main (int argc, char *argv[])
@@ -702,7 +703,5 @@ int main (int argc, char *argv[])
             ;
     if (status > 0)
         fprintf (stderr, "%d tests failed\n", status);
-    if (status == -1)
-        status = 0;
     return status;
 }
