@@ -1,0 +1,42 @@
+1. Have trie_find return a pointer to an internal null terminated static array of
+pointers.  The caller can then iterate the resultant list of rules like this
+
+rule *r = trie_find (trie, "hello.tsk");
+for (; *r; ++r) {
+}
+
+2. detect_stack_use_after_return=1 causes trie_push to crash.
+
+3. Good and easy to use trie_find interface.
+Avoid pointers to pointers.
+
+4. restore the code which uses offsets rather than pointers.
+
+5. Get rid of qsort.
+    Preferably, use trie's facilities to have node_find find the matches in order.
+
+6. Allow the user to store user data along with key and have trie_find return
+that data. That user data would be rule* in the case of gmake.
+
+7. Extend each test with testing all found matches.
+8. Write more find all tests.
+
+9.
+Replace code like
+    index = *key == '%' ? escaped_percent : *key;
+    next = node->next[index];
+
+with something like
+    next = node_next (node, *key);
+
+where node_next
+
+static
+const struct node *node_next (const struct node *node, char key)
+{
+    size_t index;
+    index = key == '%' ? escaped_percent : key;
+    return node->next[index];
+}
+
+10. compute complexity of all functions.
