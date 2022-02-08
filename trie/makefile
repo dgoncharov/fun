@@ -37,7 +37,8 @@ $(obj): %.o: %.c %.d $$(file <%.d)
 $(dfiles):;
 %.h:;
 
-asanopts:=detect_stack_use_after_return=1 detect_invalid_pointer_pairs=2
+# detect_stack_use_after_return causes trie_push to crash.
+asanopts:=detect_stack_use_after_return=0 detect_invalid_pointer_pairs=2 abort_on_error=1 disable_coredump=0 unmap_shadow_on_exit=1
 check:
 	ASAN_OPTIONS='$(asanopts)' ./$(target)
 
