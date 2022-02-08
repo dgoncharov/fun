@@ -27,7 +27,7 @@ int alloc_init (struct node_allocator *alloc, struct node *begin, size_t nnodes)
 {
     alloc->pos = begin;
     alloc->end = begin + nnodes;
-    //printf("begin = %p, end = %p\n", alloc->pos, alloc->end);
+    printf("begin = %p, end = %p\n", alloc->pos, alloc->end);
     return 0;
 }
 
@@ -62,10 +62,10 @@ int node_push (struct node *root, const char *key, struct node_allocator *alloc)
             char c;
             int index = '\\';
             size_t n = strspn (k, "\\");
-            //printf("*k=%c, n=%lu, n/2=%lu, n%%2=%lu\n", *k, n, n/2, n%2);
+            printf("*k=%c, n=%lu, n/2=%lu, n%%2=%lu\n", *k, n, n/2, n%2);
             k += n - 1; // Skip the backslashes.
             c = *(k+1); // Next char.
-            //printf("c=%c\n", c);
+            printf("c=%c\n", c);
             // gmake allows multiple % in a rule, as long as first is naked and
             // the others are escaped.
             if (c == '%') {
@@ -96,11 +96,11 @@ int node_push (struct node *root, const char *key, struct node_allocator *alloc)
 
                 // Push escaped or naked %.
                 if (n % 2) {
-                    //printf("escaped %%\n");
+                    printf("escaped %%\n");
                     index = escaped_percent;
                     root->has_percent = 1;
                 } else {
-                    //printf("naked %%\n");
+                    printf("naked %%\n");
                     index = '%';
                     stored_naked_percent = 1;
                 }
@@ -109,7 +109,7 @@ int node_push (struct node *root, const char *key, struct node_allocator *alloc)
                     node->next[index] = alloc_node (alloc);
                 node = node->next[index];
                 ++k; // Advance k, because we pushed the %.
-                //printf("next k = %c\n", *k);
+                printf("next k = %c\n", *k);
                 continue;
             }
             // The backslashes are not immediately followed by a '%'.
@@ -165,30 +165,30 @@ int node_push (struct node *root, const char *key, struct node_allocator *alloc)
 //
 //    if (*key == '\0') {
 //        if (node->key) {
-//            //printf("%*sfound %s\n", depth, "", node->key);
+//            printf("%*sfound %s\n", depth, "", node->key);
 //            return node;
 //        }
-//        //printf("%*sexhaused key, fail\n", depth, "");
+//        printf("%*sexhaused key, fail\n", depth, "");
 //        return 0;
 //    }
 //
 //    index = *key == '%' ? escaped_percent : *key;
 //    next = node->next[index];
-//    //printf("%*skey=%s, inside_wildcard=%d, wildcard_spent=%d, next[%c]=%p\n", depth, "", key, inside_wildcard, wildcard_spent, *key, next);
+//    printf("%*skey=%s, inside_wildcard=%d, wildcard_spent=%d, next[%c]=%p\n", depth, "", key, inside_wildcard, wildcard_spent, *key, next);
 //    if (next && (next = node_find_imp (next, key+1, 0, wildcard_spent, depth+1))) {
 //        const struct node *alt;
 //        size_t klen, alen;
-//        //printf("%*sfound by %c\n", depth, "", *key);
+//        printf("%*sfound by %c\n", depth, "", *key);
 //        if (wildcard_spent)
 //            return next;
-//        //printf ("%*strying alternative %%, key = %s\n", depth, "", key);
+//        printf ("%*strying alternative %%, key = %s\n", depth, "", key);
 //        alt = node->next['%'];
 //        if (alt == 0)
 //            return next;
 //        alt = node_find_imp (alt, key+1, 1, 1, depth+1);
 //        if (alt == 0)
 //            return next;
-//        //printf ("%*sfound alternative %%, key = %s, alt->key=%s, next->key=%s\n", depth, "", key, alt->key, next->key);
+//        printf ("%*sfound alternative %%, key = %s, alt->key=%s, next->key=%s\n", depth, "", key, alt->key, next->key);
 //        /* alt->key contains a %. next->key may or may not contain a %.
 //         * If alt-key is longer than next->key, next->key also contains a %.
 //         * Otherwise, next-key would not match.
@@ -203,21 +203,21 @@ int node_push (struct node *root, const char *key, struct node_allocator *alloc)
 //        return alen > klen ? alt : next;
 //    }
 //    if (inside_wildcard) {
-//        //printf("%*smatching %c to %%\n", depth, "", *key);
+//        printf("%*smatching %c to %%\n", depth, "", *key);
 //        return node_find_imp (node, key+1, 1, wildcard_spent, depth+1);
 //    }
 //    if (wildcard_spent) {
-//        //printf("%*swildcard was already used, fail\n", depth, "");
+//        printf("%*swildcard was already used, fail\n", depth, "");
 //        return 0;
 //    }
-//    //printf("%*strying %%\n", depth, "");
+//    printf("%*strying %%\n", depth, "");
 //    next = node->next['%'];
-//    //printf("%*snext[%%]=%p\n", depth, "", next);
+//    printf("%*snext[%%]=%p\n", depth, "", next);
 //    if (next == 0) {
-//        //printf("%*swildcard not found, fail\n", depth, "");
+//        printf("%*swildcard not found, fail\n", depth, "");
 //        return 0;
 //    }
-//    //printf("%*sfound %%\n", depth, "");
+//    printf("%*sfound %%\n", depth, "");
 //    return node_find_imp (next, key+1, 1, 1, depth+1);
 //}
 
@@ -238,7 +238,7 @@ const struct node **node_find_fuzzy (const struct node **result, const struct no
         assert (node);
         // First see if inside_wildcard.
         if (inside_wildcard) {
-            //printf("%*strying %c exactly inside wirdcard\n", depth, "", *k);
+            printf("%*strying %c exactly inside wirdcard\n", depth, "", *key);
             assert (wildcard_spent);
             // Then see if the node has this character.
             index = *key == '%' ? escaped_percent : *key;
@@ -249,7 +249,7 @@ const struct node **node_find_fuzzy (const struct node **result, const struct no
                 const struct node **r;
                 r = node_find_fuzzy (result, next, key+1, 0, 1, depth+1);
                 if (r > result)
-                    return r;
+                    result = r;
             }
             printf("%*s%c does not match, continue inside wildcard\n", depth, "", *key);
             // Continue inside wildcard.
@@ -312,20 +312,20 @@ const struct node *node_find_exact (const struct node *node, const char *key)
     int index;
 
 
-    //printf("%*skey = %s, inside wildcard = %d, wildcard spent = %d\n", depth, "", key, inside_wildcard, wildcard_spent);
+    printf("key = %s\n", key);
     for (; *key; ++key) {
         assert (node);
 
-        //printf("%*sno %%, matching %c exactly\n", depth, "", *key);
+        printf("no %%, matching %c exactly\n", *key);
         // Then see if the node has this character.
         index = *key == '%' ? escaped_percent : *key;
         next = node->next[index];
         if (next == 0)
             return 0; // No match.
-        //printf("%*sno %%, %c matches exactly\n", depth, "", *key);
+        printf("no %%, %c matches exactly\n", *key);
         node = next;
     }
-    //printf("%*skey exhausted\n", depth, "");
+    printf("key exhausted\n");
 
     if (*key || node->end)
         return node;
@@ -335,21 +335,40 @@ const struct node *node_find_exact (const struct node *node, const char *key)
 static
 int nodecmp (const void *x, const void *y)
 {
-    const struct node *a = x;
-    const struct node *b = y;
-printf("x = %s, y = %s\n", a->key, b->key);
-    assert (a->end);
-    assert (b->end);
-    // a and b are reversed, because the longest key is the most specific
+    const struct node * const *a, * const *b;
+    const char *xkey, *ykey;
+    size_t xlen, ylen;
+
+    a = x;
+    b = y;
+
+    assert ((*a)->end);
+    assert ((*b)->end);
+
+    xkey = (*a)->key;
+    ykey = (*b)->key;
+
+printf("xkey = %s, ykey = %s\n", xkey, ykey);
+
+    xlen = strlen (xkey);
+    ylen = strlen (ykey);
+
+    // x and y are reversed, because the longest key is the most specific
     // match.
-    return strcmp (b->key, a->key);
+    if (xlen < ylen)
+        return 1;
+    if (ylen < xlen)
+        return -1;
+
+    return strcmp (ykey, xkey);
 }
 
 static
 const char *node_find (const struct node **result_begin, const struct node *node, const char *key)
 {
     const struct node *next;
-    const struct node **result_end;
+    const struct node **result_end, ** r;
+    const char *del;
 
     // Exact match always beats fuzzy match.
     next = node_find_exact (node, key);
@@ -361,6 +380,11 @@ const char *node_find (const struct node **result_begin, const struct node *node
 //TODO: replace qsort with insert sort at the time of insertion to result?
     qsort (result_begin, result_end-result_begin, sizeof node, nodecmp);
     *result_end = 0; // Null terminator.
+    printf("sorted keys ");
+    del = "";
+    for (r = result_begin; *r; ++r, del = ", ")
+        printf("%s%s", del, (*r)->key);
+    printf("\n");
     return (*result_begin)->key;
 }
 
@@ -372,32 +396,32 @@ int node_has_prefer_exact_match (const struct node *node, const char *key,
     int index;
 
     if (*key == '\0') {
-        //printf("%*skey exhausted, node->end = %d\n", depth, "", node->end);
+        printf("%*skey exhausted, node->end = %d\n", depth, "", node->end);
         return node->end;
     }
 
     index = *key == '%' ? escaped_percent : *key;
     next = node->next[index];
-    //printf("%*skey=%s, inside_wildcard=%d, wildcard_spent=%d, next[%c]=%p\n", depth, "", key, inside_wildcard, wildcard_spent, *key, next);
+    printf("%*skey=%s, inside_wildcard=%d, wildcard_spent=%d, next[%c]=%p\n", depth, "", key, inside_wildcard, wildcard_spent, *key, next);
     if (next && node_has_prefer_exact_match (next, key+1, 0, wildcard_spent, depth+1)) {
-        //printf("%*s%c is found\n", depth, "", *key);
+        printf("%*s%c is found\n", depth, "", *key);
         return 1;
     }
     if (inside_wildcard) {
-        //printf("%*smatched %c to %%\n", depth, "", *key);
+        printf("%*smatched %c to %%\n", depth, "", *key);
         return node_has_prefer_exact_match (node, key+1, 1, wildcard_spent, depth+1);
     }
     if (wildcard_spent) {
-        //printf("%*s%% was already used, backtrack key\n", depth, "");
+        printf("%*s%% was already used, backtrack key\n", depth, "");
         return 0;
     }
     next = node->next['%'];
-    //printf("%*snext[%%]=%p\n", depth, "", next);
+    printf("%*snext[%%]=%p\n", depth, "", next);
     if (next == 0) {
-        //printf("%*sbacktrack key\n", depth, "");
+        printf("%*sbacktrack key\n", depth, "");
         return 0;
     }
-    //printf("%*smatching %c to %%\n", depth, "", *key);
+    printf("%*smatching %c to %%\n", depth, "", *key);
     return node_has_prefer_exact_match (next, key+1, 1, 1, depth+1);
 }
 
@@ -408,7 +432,7 @@ int node_has_prefer_fuzzy_match (const struct node *node, const char *key, int i
     int index;
 
 
-    //printf("%*skey = %s, inside wildcard = %d, wildcard spent = %d\n", depth, "", key, inside_wildcard, wildcard_spent);
+    printf("%*skey = %s, inside wildcard = %d, wildcard spent = %d\n", depth, "", key, inside_wildcard, wildcard_spent);
     // Ensure recursion is limited to 3.
     // This function cannot afford deep recursion, because deep recursion would
     // prevent long keys.
@@ -418,18 +442,18 @@ int node_has_prefer_fuzzy_match (const struct node *node, const char *key, int i
         assert (node);
         // First see if inside_wildcard.
         if (inside_wildcard) {
-            //printf("%*strying %c exactly inside wirdcard\n", depth, "", *k);
+            printf("%*strying %c exactly inside wirdcard\n", depth, "", *key);
             assert (wildcard_spent);
             // Then see if the node has this character.
             index = *key == '%' ? escaped_percent : *key;
             next = node->next[index];
             if (next) {
-                //printf("%*s%c matches\n", depth, "", *key);
+                printf("%*s%c matches\n", depth, "", *key);
                 // No more inside wildcard.
                 if (node_has_prefer_fuzzy_match (next, key+1, 0, 1, depth+1))
                     return 1;
             }
-            //printf("%*s%c does not match, continue inside wildcard\n", depth, "", *key);
+            printf("%*s%c does not match, continue inside wildcard\n", depth, "", *key);
             // Continue inside wildcard.
             // Keep node intact.
             continue;
@@ -439,39 +463,39 @@ int node_has_prefer_fuzzy_match (const struct node *node, const char *key, int i
         if (wildcard_spent) {
             // Not inside wildcard and wildcard was used already.
             // Every character has to match exactly.
-            //printf("%*strying %c exactly outside wirdcard\n", depth, "", *key);
+            printf("%*strying %c exactly outside wirdcard\n", depth, "", *key);
             index = *key == '%' ? escaped_percent : *key;
             next = node->next[index];
             if (next == 0) {
                 // No match.
                 // Need to backtrack and resume from the prior fork and take
                 // the other path.
-                //printf("%*s%c does not match, wildcard used already, no match\n", depth, "", *key);
+                printf("%*s%c does not match, wildcard used already, no match\n", depth, "", *key);
                 return 0;
             }
-            //printf("%*s%c matches outside wildcard, continue matching exactly\n", depth, "", *key);
+            printf("%*s%c matches outside wildcard, continue matching exactly\n", depth, "", *key);
             node = next;
             continue;
         }
-        //printf("%*ssee if the node has a %%\n", depth, "");
+        printf("%*ssee if the node has a %%\n", depth, "");
         // Not inside wildcard and wildcard is still available.
         // Then see if the node has a wildcard.
         next = node->next['%'];
         if (next) {
-            //printf("%*sfound %%, recursing\n", depth, "");
+            printf("%*sfound %%, recursing\n", depth, "");
             if (node_has_prefer_fuzzy_match (next, key+1, 1, 1, depth+1))
                 return 1;
         }
-        //printf("%*sno %%, matching %c exactly\n", depth, "", *key);
+        printf("%*sno %%, matching %c exactly\n", depth, "", *key);
         // Then see if the node has this character.
         index = *key == '%' ? escaped_percent : *key;
         next = node->next[index];
         if (next == 0)
             return 0; // No match.
-        //printf("%*sno %%, %c matches exactly\n", depth, "", *key);
+        printf("%*sno %%, %c matches exactly\n", depth, "", *key);
         node = next;
     }
-    //printf("%*skey exhausted\n", depth, "");
+    printf("%*skey exhausted\n", depth, "");
 
     if (*key == '\0')
         return node->end;
@@ -494,12 +518,12 @@ static
 int node_has (const struct node *node, const char *key, int prefer_fuzzy_match)
 {
     int rc;
-    //printf ("looking for %s\n", key);
+    printf ("looking for %s\n", key);
     if (prefer_fuzzy_match)
         rc = node_has_prefer_fuzzy_match (node, key, 0, 0, 0);
     else
         rc = node_has_prefer_exact_match (node, key, 0, 0, 0);
-    //printf ("%sfound %s\n", rc ? "" : "not ", key);
+    printf ("%sfound %s\n", rc ? "" : "not ", key);
     return rc;
 }
 
@@ -587,7 +611,7 @@ int trie_push (void *trie, const char *key)
     rc = node_push (tr->root, key, &tr->alloc);
     if (rc == 0) {
         ++tr->size;
-        //printf("pushed %s, size = %d\n", key, tr->size);
+        printf("pushed %s, size = %d\n", key, tr->size);
     }
     return rc;
 }
