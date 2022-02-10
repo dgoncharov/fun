@@ -62,6 +62,7 @@ static
 int run_test (long test, int argc, char *argv[])
 {
     void *vector = 0;
+    int retcode = 0;
 
     printf ("test %ld\n", test);
 
@@ -96,11 +97,11 @@ int run_test (long test, int argc, char *argv[])
         break;
     }
     default:
-        status = -1;
+        retcode = -1;
         break;
     }
     vector_free (vector);
-    return status;
+    return retcode;
 }
 
 int main (int argc, char *argv[])
@@ -127,7 +128,5 @@ int main (int argc, char *argv[])
             ;
     if (status > 0)
         fprintf (stderr, "%d tests failed\n", status);
-    if (status == -1)
-        status = 0;
     return status;
 }
