@@ -70,7 +70,7 @@ int run_test (long test, int argc, char *argv[])
 
     const int maxklen = 64; // Max length of a key.
     const int nkeys = argc > 2 ? atoi (argv[2]) : 16;
-    trie = trie_init (maxklen * nkeys);
+    trie = trie_init (maxklen * nkeys, 1);
     size = trie_size (trie);
     ASSERT (size == 0, "size = %d\n", size);
 
@@ -320,7 +320,7 @@ int run_test (long test, int argc, char *argv[])
         const size_t keysz = 64 * 1024 + 5;
 
         trie_free (trie);
-        trie = trie_init (2*keysz);
+        trie = trie_init (2*keysz, 0);
 
         key = malloc(keysz);
         ASSERT (key);
