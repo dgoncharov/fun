@@ -316,18 +316,20 @@ static
 const char *node_find (const struct node **result_begin, const struct node *node, const char *key)
 {
     const struct node *next;
-    const struct node **result_end, ** r;
+    const struct node ** r;
     const char *del;
 
+    r = result_begin;
     // Exact match always beats fuzzy match.
     next = node_find_exact (node, key);
     if (next)
-        return next->key;
-    result_end = node_find_fuzzy (result_begin, node, key, 0, 0, 0);
-    if (result_begin == result_end)
+        *r++ = next;
+    
+    r = node_find_fuzzy (r, node, key, 0, 0, 0);
+    if (result_begin == r)
         return 0;
-    qsort (result_begin, result_end-result_begin, sizeof node, nodecmp);
-    *result_end = 0; // Null terminator.
+    qsort (result_begin, r-result_begin, sizeof node, nodecmp);
+    *r = 0; // Null terminator.
     print ("sorted keys ");
     del = "";
     for (r = result_begin; *r; ++r, del = ", ")
