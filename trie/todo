@@ -10,7 +10,7 @@ for (; *r; ++r) {
 3. Good and easy to use trie_find interface.
 Avoid pointers to pointers.
 
-4. restore the code which uses offsets rather than pointers.
+4. Restore the code which uses offsets rather than pointers.
 
 5. Get rid of qsort.
     Preferably, use trie's facilities to have node_find find the matches in order.
@@ -39,4 +39,31 @@ const struct node *node_next (const struct node *node, char key)
     return node->next[index];
 }
 
-10. compute complexity of all functions.
+10. Compute the complexity of each function.
+
+11. Look at wildcard_spent and avoid checking %, if found a perfect match.
+
+12. Iterative node_free.
+
+13. Double check that all functions are iterative.
+
+14. Move to a dedicated repo.
+
+15. Modify trie_push to save only patterns?
+This will allow to get rid of node_find_exact.
+
+16. Either have node->key or node->end. There is no need for both.
+If node->key is present, then node_print can be simplified.
+If node->key is removed, then trie_find will have to return a list of all
+matches in an unspecified order. Each match has to carry user data. The caller
+will then have to sort the list by looking at the attached user data.
+
+17. Reuse node_find_fuzzy for node_has. Just return on the first match if a
+parameter is passed.
+
+18. Replace trie_has with trie_find which return the found match?
+This is more generic. However, this requires that the user supplies some user
+data and that user data is stored, so it can be returned.
+trie_has allows trie to store no user data.
+
+19.
