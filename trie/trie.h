@@ -10,7 +10,7 @@ struct result {
 
 void *trie_init (int maxkeys, int maxchars, int loglevel);
 int trie_free (void *trie);
-int trie_push (void *trie, const char *key, void *userdata);
+int trie_push (void *trie, const char *key, const void *userdata);
 const struct result *trie_find (void *trie, const char *key);
 const struct result **trie_find_all (void *trie, const char *key);
 int trie_has (const void *trie, const char *key, int prefer_fuzzy_match);

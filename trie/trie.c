@@ -1,6 +1,7 @@
 #include "trie.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <assert.h>
@@ -61,7 +62,6 @@ int node_push (struct node *root, const char *key, int16_t result_offs, struct n
 {
     struct node *node = root;
     int index;
-    size_t klen;
     int stored_naked_percent = 0;
 
     for (const char *k = key; *k; ++k) {
@@ -106,7 +106,6 @@ int node_push (struct node *root, const char *key, int16_t result_offs, struct n
                 if (n % 2) {
                     print ("escaped %%\n");
                     index = escaped_percent;
-                    root->has_percent = 1;
                 } else {
                     print ("naked %%\n");
                     index = '%';
@@ -137,7 +136,6 @@ int node_push (struct node *root, const char *key, int16_t result_offs, struct n
                 // The caller should print an error message and terminate.
                 return -1;
             stored_naked_percent = 1;
-            root->has_percent = 1;
         }
         index = *k;
         if (node->next[index] == 0)
@@ -154,7 +152,7 @@ int node_push (struct node *root, const char *key, int16_t result_offs, struct n
 }
 
 static
-const char **node_find_fuzzy (const struct result **result, const struct node *node, const char *key, const struct result *results_begin, int inside_wildcard, int wildcard_spent, int depth)
+const struct result **node_find_fuzzy (const struct result **result, const struct node *node, const char *key, const struct result *results_begin, int inside_wildcard, int wildcard_spent, int depth)
 {
     const struct node *next;
     int index;
@@ -228,12 +226,17 @@ const char **node_find_fuzzy (const struct result **result, const struct node *n
         node = next;
     }
     print ("%*skey exhausted\n", depth, "");
+    assert (*key == '\0');
 
-    if (*key == '\0' && node->result_offs >= 0) {
+    /* If wildcard was not spent, then this is the exact match. Ignore it to
+     * avoid duplication of the exact match in results, because trie_find_all
+     * calls node_find_exact. node_find_fuzzy only finds fuzzy matches. */
+    if (node->result_offs >= 0 && wildcard_spent) {
         const struct result *res = results_begin + node->result_offs;
         print ("%*sfound %s\n", depth, "", res->key);
         *result++ = res;
     }
+
     return result;
 }
 
@@ -248,7 +251,7 @@ const struct node *node_find_exact (const struct node *node, const char *key)
     for (; *key; ++key) {
         assert (node);
 
-        print ("no %%, matching %c exactly\n", *key);
+        print ("matching %c exactly\n", *key);
         // Then see if the node has this character.
         index = *key == '%' ? escaped_percent : *key;
         next = node->next[index];
@@ -259,8 +262,9 @@ const struct node *node_find_exact (const struct node *node, const char *key)
     }
     print ("key exhausted\n");
 
-    if (*key || node->end)
+    if (node->result_offs >= 0)
         return node;
+
     return 0;
 }
 
@@ -286,6 +290,8 @@ int resultcmp (const void *x, const void *y)
         return -1;
 
     /* If the keys are of equal length return the one that was pushed first. */
+    assert (a->order >= 0);
+    assert (b->order >= 0);
     assert (a->order != b->order);
     if (a->order < b->order)
         return -1;
@@ -293,47 +299,33 @@ int resultcmp (const void *x, const void *y)
 }
 
 static
-const struct result **node_find (const struct **found, const struct node *node, const char *key, const struct result *results_begin, int all)
-{
-    const struct node *next;
-    const struct **r;
-
-    r = found;
-    *r = 0;
-    // Exact match always beats fuzzy match.
-    next = node_find_exact (node, key);
-    if (next && all == 0) {
-        const struct result *res = results_begin + next->result_offs;
-        print ("%*sfound %s\n", depth, "", res->key);
-        *r++ = res;
-        return r;
-    }
-    
-    return node_find_fuzzy (r, node, key, results_begin, 0, 0, 0);
-}
-
-static
 int node_has_prefer_exact_match (const struct node *node, const char *key,
-                  int inside_wildcard, int wildcard_spent, int depth)
+    const struct result *results_begin, int inside_wildcard,
+    int wildcard_spent, int depth)
 {
     const struct node *next;
     int index;
 
     if (*key == '\0') {
-        print ("%*skey exhausted, node->end = %d\n", depth, "", node->end);
-        return node->end;
+        print ("%*skey exhausted, result_offs = %d\n", depth, "", node->result_offs);
+        if (node->result_offs >= 0) {
+            const struct result *res = results_begin + node->result_offs;
+            print ("%*sfound %s\n", depth, "", res->key);
+            return 1;
+        }
+        return 0;
     }
 
     index = *key == '%' ? escaped_percent : *key;
     next = node->next[index];
     print ("%*skey=%s, inside_wildcard=%d, wildcard_spent=%d, next[%c]=%p\n", depth, "", key, inside_wildcard, wildcard_spent, *key, next);
-    if (next && node_has_prefer_exact_match (next, key+1, 0, wildcard_spent, depth+1)) {
+    if (next && node_has_prefer_exact_match (next, key+1, results_begin, 0, wildcard_spent, depth+1)) {
         print ("%*s%c is found\n", depth, "", *key);
         return 1;
     }
     if (inside_wildcard) {
         print ("%*smatched %c to %%\n", depth, "", *key);
-        return node_has_prefer_exact_match (node, key+1, 1, wildcard_spent, depth+1);
+        return node_has_prefer_exact_match (node, key+1, results_begin, 1, wildcard_spent, depth+1);
     }
     if (wildcard_spent) {
         print ("%*s%% was already used, backtrack key\n", depth, "");
@@ -346,11 +338,11 @@ int node_has_prefer_exact_match (const struct node *node, const char *key,
         return 0;
     }
     print ("%*smatching %c to %%\n", depth, "", *key);
-    return node_has_prefer_exact_match (next, key+1, 1, 1, depth+1);
+    return node_has_prefer_exact_match (next, key+1, results_begin, 1, 1, depth+1);
 }
 
 static
-int node_has_prefer_fuzzy_match (const struct node *node, const char *key, int inside_wildcard, int wildcard_spent, int depth)
+int node_has_prefer_fuzzy_match (const struct node *node, const char *key, const struct result *results_begin, int inside_wildcard, int wildcard_spent, int depth)
 {
     const struct node *next;
     int index;
@@ -374,7 +366,7 @@ int node_has_prefer_fuzzy_match (const struct node *node, const char *key, int i
             if (next) {
                 print ("%*s%c matches\n", depth, "", *key);
                 // No more inside wildcard.
-                if (node_has_prefer_fuzzy_match (next, key+1, 0, 1, depth+1))
+                if (node_has_prefer_fuzzy_match (next, key+1, results_begin, 0, 1, depth+1))
                     return 1;
             }
             print ("%*s%c does not match, continue inside wildcard\n", depth, "", *key);
@@ -407,7 +399,7 @@ int node_has_prefer_fuzzy_match (const struct node *node, const char *key, int i
         next = node->next['%'];
         if (next) {
             print ("%*sfound %%, recursing\n", depth, "");
-            if (node_has_prefer_fuzzy_match (next, key+1, 1, 1, depth+1))
+            if (node_has_prefer_fuzzy_match (next, key+1, results_begin, 1, 1, depth+1))
                 return 1;
         }
         print ("%*sno %%, matching %c exactly\n", depth, "", *key);
@@ -421,8 +413,12 @@ int node_has_prefer_fuzzy_match (const struct node *node, const char *key, int i
     }
     print ("%*skey exhausted\n", depth, "");
 
-    if (*key == '\0')
-        return node->end;
+    if (*key == '\0' && node->result_offs >= 0) {
+        const struct result *res = results_begin + node->result_offs;
+        print ("%*sfound %s\n", depth, "", res->key);
+        return 1;
+    }
+
     return 0;
 }
 
@@ -439,14 +435,14 @@ int node_has_prefer_fuzzy_match (const struct node *node, const char *key, int i
 // contents of node, node_has_prefer_fuzzy_match performs better on other
 // contents of node.
 static
-int node_has (const struct node *node, const char *key, int prefer_fuzzy_match)
+int node_has (const struct node *node, const char *key, const struct result *results_begin, int prefer_fuzzy_match)
 {
     int rc;
     print ("looking for %s\n", key);
     if (prefer_fuzzy_match)
-        rc = node_has_prefer_fuzzy_match (node, key, 0, 0, 0);
+        rc = node_has_prefer_fuzzy_match (node, key, results_begin, 0, 0, 0);
     else
-        rc = node_has_prefer_exact_match (node, key, 0, 0, 0);
+        rc = node_has_prefer_exact_match (node, key, results_begin, 0, 0, 0);
     print ("%sfound %s\n", rc ? "" : "not ", key);
     return rc;
 }
@@ -456,15 +452,15 @@ int node_has (const struct node *node, const char *key, int prefer_fuzzy_match)
 static
 char *node_print_imp (const struct node *node, char *buf, ssize_t buflen, off_t off)
 {
-    if (node->end) {
+    if (node->result_offs >= 0) {
         buf[off] = '\0';
         printf ("%s\n", buf);
     }
     for (size_t k = 0; k < asciisz; ++k)
         if (node->next[k]) {
             // Add extra 8 chars, because off+1 is passed to node_print_imp at
-            // the end of this if check and if node->end is set, then buf[off]
-            // is assigned '\0'.
+            // the end of this if check and if node->result_offs is set, then
+            // buf[off] is assigned '\0'.
             if (buflen <= off + 8) {
                 while (buflen <= off + 8)
                     buflen *= 2;
@@ -518,13 +514,15 @@ void *trie_init (int maxkeys, int maxchars, int loglevel)
     print ("trie = %p\n", trie);
     assert (trie);
     trie->root = (struct node *) (trie + 1);
+    trie->root->result_offs = -1;
     print ("trie->root = %p, sizeof (struct node) = %zu, sizeof (*trie->root) = %zu, first node = %p\n", trie->root, sizeof (struct node), sizeof (*trie->root), trie->root + 1);
     // The first node is the root node.
     // The first available node is right next to root.
-    alloc_init (&trie->alloc, trie->root + 1, nnodes);
-    trie->results_begin = malloc (maxkeys * sizeof *trie->results_begin);
+    alloc_init (&trie->node_alloc, trie->root + 1, nnodes);
+    trie->results_begin = trie->results_end = malloc (maxkeys * sizeof *trie->results_begin);
+    print ("results_begin = %p\n", trie->results_begin);
     trie->found = malloc (maxkeys * sizeof *trie->found);
-    trie->keys_begin = malloc (maxchars * sizeof *trie->keys);
+    trie->keys_begin = trie->keys_end = malloc (maxchars * sizeof *trie->keys_begin);
     return trie;
 }
 
@@ -538,38 +536,41 @@ int trie_free (void *trie)
     return 0;
 }
 
-int trie_push (void *trie, const char *key, void *userdata)
+int trie_push (void *trie, const char *key, const void *userdata)
 {
     int rc;
     struct trie *tr = trie;
-    struct result *result = tr->result->end;
+    struct result *result = tr->results_end;
+    size_t klen;
 
-    rc = node_push (tr->root, key, result - tr->results_begin, &tr->alloc);
+    rc = node_push (tr->root, key, result - tr->results_begin, &tr->node_alloc);
     if (rc)
         return rc;
     klen = strlen (key) + 1; // + 1 for null terminator.
-    memcpy (keys_pos, key, klen);
-    result->key = keys_pos;
-    result->userdata = userdata;
+    memcpy (tr->keys_end, key, klen);
+    result->key = tr->keys_end;
+    result->userdata = (void*) userdata;
     result->order = tr->order++;
-    tr->keys_pos += klen;
-    ++tr->result->end;
+    tr->keys_end += klen;
+    ++tr->results_end;
     ++tr->size;
     print ("pushed %s, size = %d\n", key, tr->size);
-    return rc;
+    return 0;
 }
 
 static
-int integrity (const char **result, const char *key)
+int integrity (const struct result **result, const char *key)
 {
+    const struct result *r;
     const size_t klen = strlen (key);
     int nexact = 0; /* The number of results that match the key exactly. */
 
     for (; *result; ++result) {
-        const size_t rlen = strlen (*result);
-        assert (klen >= rlen || strchr (*result, '\\'));
-        assert (nexact == 0 || strchr (*result, '%'));
-        nexact += strcmp (key, *result) == 0;
+        r = *result;
+        const size_t rlen = strlen (r->key);
+        assert (klen >= rlen || strchr (r->key, '\\'));
+        assert (nexact == 0 || strchr (r->key, '%'));
+        nexact += strcmp (key, r->key) == 0;
     }
     assert (nexact == 0 || nexact == 1);
     return 1;
@@ -578,15 +579,28 @@ int integrity (const char **result, const char *key)
 const struct result **trie_find_all (void *trie, const char *key)
 {
     struct trie *tr = trie;
-    const struct result **r;
+    const struct result **r, **begin = tr->found;
     const char *del = "";
+    const struct node *next;
 
-    r = node_find (tr->found, tr->root, key, 1);
-    qsort (tr->found, r - tr->found, sizeof *r, resultcmp);
+    // Exact match always beats fuzzy match.
+    next = node_find_exact (tr->root, key);
+    if (next) {
+        *begin++ = tr->results_begin + next->result_offs;
+        print ("found exact match %s\n", (*tr->found)->key);
+        assert (strcmp ((*tr->found)->key, key) == 0 || strchr (key, '%'));
+    }
+
+    print ("finding fuzzy matches of %s\n", key);
+    r = node_find_fuzzy (begin, tr->root, key, tr->results_begin, 0, 0, 0);
+    /* If there is exact match, then 'begin' points to element 1 and the exact
+     * match is located in element 0. Sort starting from 'begin' to ensure the
+     * exact match stays in element 0. */
+    qsort (begin, r - begin, sizeof *r, resultcmp);
     *r = 0; // Null terminator.
     print ("sorted results ");
     for (r = tr->found; *r; ++r, del = ", ")
-        print ("%s%s", del, r->key);
+        print ("%s%s", del, (*r)->key);
     print ("\n");
     assert (integrity (tr->found, key));
     return tr->found;
@@ -600,7 +614,7 @@ const struct result *trie_find (void *trie, const char *key)
 int trie_has (const void *trie, const char *key, int prefer_fuzzy_match)
 {
     const struct trie *tr = trie;
-    return node_has (tr->root, key, prefer_fuzzy_match);
+    return node_has (tr->root, key, tr->results_begin, prefer_fuzzy_match);
 }
 
 int trie_size (const void *trie)
