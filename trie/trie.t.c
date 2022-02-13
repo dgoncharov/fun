@@ -316,7 +316,7 @@ int run_test (long test, int argc, char *argv[])
     case 13: {
         // Test a key longer than 64k.
         char *key;
-        const char *key2;
+        const char *found;
         const size_t keysz = 64 * 1024 + 5;
 
         trie_free (trie);
@@ -332,8 +332,8 @@ int run_test (long test, int argc, char *argv[])
 //        ASSERT (rc == 0);
         rc = trie_has (trie, key, 1);
         ASSERT (rc == 0);
-        key2 = trie_find (trie, key);
-        ASSERT (key2 == 0, "key2 = %s\n", key2);
+        found = trie_find (trie, key);
+        ASSERT (found == 0, "found = %s\n", found);
 
         trie_push (trie, "y%y");
 
@@ -341,8 +341,8 @@ int run_test (long test, int argc, char *argv[])
 //        ASSERT (rc);
         rc = trie_has (trie, key, 1);
         ASSERT (rc);
-        key2 = trie_find (trie, key);
-        ASSERT (strcmp (key2, "y%y") == 0, "key2 = %s\n", key2);
+        found = trie_find (trie, key);
+        ASSERT (strcmp (found, "y%y") == 0, "found = %s\n", found);
 
         trie_push (trie, key);
 
@@ -350,8 +350,8 @@ int run_test (long test, int argc, char *argv[])
 //        ASSERT (rc);
         rc = trie_has (trie, key, 1);
         ASSERT (rc);
-        key2 = trie_find (trie, key);
-        ASSERT (strcmp (key2, key) == 0, "key = %s, key2 = %s\n", key, key2);
+        found = trie_find (trie, key);
+        ASSERT (strcmp (found, key) == 0, "key = %s, found = %s\n", key, found);
 
         free (key);
         break;
