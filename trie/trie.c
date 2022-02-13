@@ -28,10 +28,8 @@ int print (const char *format, ...)
 enum {asciisz = 128, escaped_percent = 0};
 struct node {
     struct node *next[asciisz];
-    char *key; // The key which ends here. This is the key that was passed to
-               // node_push intact with all escaping backslashes preserved.
-    unsigned end:1; // When set this node is the end of a word.
-    unsigned has_percent:1; // When set the node contains a naked %.
+    int16_t result_offs; /* Offset to trie->results_begin.
+                          * When >=0 this node is the end of a word. */
 };
 
 struct node_allocator {
@@ -51,22 +49,15 @@ int alloc_init (struct node_allocator *alloc, struct node *begin, size_t nnodes)
 static
 struct node* alloc_node (struct node_allocator *alloc)
 {
+    struct node *node;
     assert (alloc->pos < alloc->end);
-    return alloc->pos++;
+    node = alloc->pos++;
+    node->result_offs = -1;
+    return node;
 }
 
 static
-int node_free (struct node *node)
-{
-    for (size_t k = 0; k < asciisz; ++k)
-        if (node->next[k])
-            node_free (node->next[k]);
-    free (node->key);
-    return 0;
-}
-
-static
-int node_push (struct node *root, const char *key, struct node_allocator *alloc)
+int node_push (struct node *root, const char *key, int16_t result_offs, struct node_allocator *alloc)
 {
     struct node *node = root;
     int index;
@@ -153,29 +144,21 @@ int node_push (struct node *root, const char *key, struct node_allocator *alloc)
             node->next[index] = alloc_node (alloc);
         node = node->next[index];
     }
-    node->end = 1;
-    assert (node->key == 0 || strcmp (node->key, key) == 0);
-
-    // Pushing the same key multiple times is allowed, even though
-    // pointless.
-    // If node->key is set, that means this key was already pushed earlier.
-    if (node->key)
-        // Duplicate key.
+    if (node->result_offs >= 0)
+        /* This key was already pushed. Fail. */
         return 1;
 
     // This key is not present in trie yet.
-    klen = strlen (key) + 1; // + 1 for null terminator.
-    node->key = malloc (klen);
-    memcpy (node->key, key, klen);
+    node->result_offs = result_offs;
     return 0;
 }
 
 static
-const char **node_find_fuzzy (const char **result, const struct node *node, const char *key, int inside_wildcard, int wildcard_spent, int depth)
+const char **node_find_fuzzy (const struct result **result, const struct node *node, const char *key, const struct result *results_begin, int inside_wildcard, int wildcard_spent, int depth)
 {
     const struct node *next;
     int index;
-    const char **r;
+    const struct result **r;
 
 
     print ("%*skey = %s, inside wildcard = %d, wildcard spent = %d\n", depth, "", key, inside_wildcard, wildcard_spent);
@@ -196,7 +179,7 @@ const char **node_find_fuzzy (const char **result, const struct node *node, cons
             if (next) {
                 print ("%*s%c matches exactly\n", depth, "", *key);
                 // No more inside wildcard.
-                r = node_find_fuzzy (result, next, key+1, 0, 1, depth+1);
+                r = node_find_fuzzy (result, next, key+1, results_begin, 0, 1, depth+1);
                 if (r > result)
                     result = r;
             }
@@ -230,7 +213,7 @@ const char **node_find_fuzzy (const char **result, const struct node *node, cons
         next = node->next['%'];
         if (next) {
             print ("%*sfound %%, recursing\n", depth, "");
-            r = node_find_fuzzy (result, next, key+1, 1, 1, depth+1);
+            r = node_find_fuzzy (result, next, key+1, results_begin, 1, 1, depth+1);
             if (r > result)
                 result = r;
         }
@@ -246,9 +229,10 @@ const char **node_find_fuzzy (const char **result, const struct node *node, cons
     }
     print ("%*skey exhausted\n", depth, "");
 
-    if (*key == '\0' && node->end) {
-        print ("%*sfound %s\n", depth, "", node->key);
-        *result++ = node->key;
+    if (*key == '\0' && node->result_offs >= 0) {
+        const struct result *res = results_begin + node->result_offs;
+        print ("%*sfound %s\n", depth, "", res->key);
+        *result++ = res;
     }
     return result;
 }
@@ -281,9 +265,11 @@ const struct node *node_find_exact (const struct node *node, const char *key)
 }
 
 static
-int nodecmp (const void *x, const void *y)
+int resultcmp (const void *x, const void *y)
 {
-    const char *xkey = *(char**) x, *ykey = *(char**) y;
+    const struct result *a = *(const struct result **) x;
+    const struct result *b = *(const struct result **) y;
+    const char *xkey = a->key, *ykey = b->key;
     size_t xlen, ylen;
 
 
@@ -299,26 +285,31 @@ int nodecmp (const void *x, const void *y)
     if (ylen < xlen)
         return -1;
 
-//TODO: when patterns are of equal length return the one that was pushed first.
+    /* If the keys are of equal length return the one that was pushed first. */
+    assert (a->order != b->order);
+    if (a->order < b->order)
+        return -1;
     return 1;
 }
 
 static
-const char **node_find (const char **result, const struct node *node, const char *key, int all)
+const struct result **node_find (const struct **found, const struct node *node, const char *key, const struct result *results_begin, int all)
 {
     const struct node *next;
-    const char **r;
+    const struct **r;
 
-    r = result;
-    *r = '\0';
+    r = found;
+    *r = 0;
     // Exact match always beats fuzzy match.
     next = node_find_exact (node, key);
     if (next && all == 0) {
-        *r++ = next->key;
+        const struct result *res = results_begin + next->result_offs;
+        print ("%*sfound %s\n", depth, "", res->key);
+        *r++ = res;
         return r;
     }
     
-    return node_find_fuzzy (r, node, key, 0, 0, 0);
+    return node_find_fuzzy (r, node, key, results_begin, 0, 0, 0);
 }
 
 static
@@ -500,22 +491,28 @@ int node_print (const struct node *node)
 
 struct trie {
     struct node *root;
-    const char **result; // trie_find stores the found matching keys here.
+    struct result *results_begin; /* trie_push stores the pushed keys and userdata here. */
+    struct result *results_end;
+    const struct result **found; /* trie_find stores the found matching records here. */
+    char *keys_begin; /* trie_push stores the pushed keys here. */
+    char *keys_end;
     int size; // The number of keys in this trie.
-    struct node_allocator alloc;
+    int order;
+    struct node_allocator node_alloc;
 };
 
-// LIMIT is the max number of characters (equals the number of nodes) that
+// MAXKEYS is the max number of keys that can be pushed to this trie.
+// MAXCHARS is the max number of characters (equals the number of nodes) that
 // can be pushed to this trie.
-void *trie_init (int limit, int loglevel)
+void *trie_init (int maxkeys, int maxchars, int loglevel)
 {
     struct trie *trie;
-    const size_t nbytes = sizeof (struct node) * limit + sizeof (struct trie);
-    const int nnodes = limit - 1; // Minus the root node.
+    const size_t nbytes = sizeof (struct node) * maxchars + sizeof (struct trie);
+    const int nnodes = maxchars - 1; // Minus the root node.
 
     g_loglevel = loglevel;
 
-    assert (limit > 0);
+    assert (maxchars > 0);
     print ("allocating %zu bytes for %d nodes\n", nbytes, nnodes);
     trie = calloc (1, nbytes);
     print ("trie = %p\n", trie);
@@ -525,29 +522,40 @@ void *trie_init (int limit, int loglevel)
     // The first node is the root node.
     // The first available node is right next to root.
     alloc_init (&trie->alloc, trie->root + 1, nnodes);
-//TODO: take the number of future keys and init trie->result.
-    trie->result = malloc (1024 * sizeof (char*));
+    trie->results_begin = malloc (maxkeys * sizeof *trie->results_begin);
+    trie->found = malloc (maxkeys * sizeof *trie->found);
+    trie->keys_begin = malloc (maxchars * sizeof *trie->keys);
     return trie;
 }
 
 int trie_free (void *trie)
 {
     const struct trie *tr = trie;
-    node_free (tr->root);
-    free (tr->result);
+    free (tr->results_begin);
+    free (tr->found);
+    free (tr->keys_begin);
     free (trie);
     return 0;
 }
 
-int trie_push (void *trie, const char *key)
+int trie_push (void *trie, const char *key, void *userdata)
 {
     int rc;
     struct trie *tr = trie;
-    rc = node_push (tr->root, key, &tr->alloc);
-    if (rc == 0) {
-        ++tr->size;
-        print ("pushed %s, size = %d\n", key, tr->size);
-    }
+    struct result *result = tr->result->end;
+
+    rc = node_push (tr->root, key, result - tr->results_begin, &tr->alloc);
+    if (rc)
+        return rc;
+    klen = strlen (key) + 1; // + 1 for null terminator.
+    memcpy (keys_pos, key, klen);
+    result->key = keys_pos;
+    result->userdata = userdata;
+    result->order = tr->order++;
+    tr->keys_pos += klen;
+    ++tr->result->end;
+    ++tr->size;
+    print ("pushed %s, size = %d\n", key, tr->size);
     return rc;
 }
 
@@ -567,24 +575,24 @@ int integrity (const char **result, const char *key)
     return 1;
 }
 
-const char **trie_find_all (void *trie, const char *key)
+const struct result **trie_find_all (void *trie, const char *key)
 {
     struct trie *tr = trie;
-    const char **r;
+    const struct result **r;
     const char *del = "";
 
-    r = node_find (tr->result, tr->root, key, 1);
-    qsort (tr->result, r - tr->result, sizeof (char *), nodecmp);
+    r = node_find (tr->found, tr->root, key, 1);
+    qsort (tr->found, r - tr->found, sizeof *r, resultcmp);
     *r = 0; // Null terminator.
     print ("sorted results ");
-    for (r = tr->result; *r; ++r, del = ", ")
-        print ("%s%s", del, *r);
+    for (r = tr->found; *r; ++r, del = ", ")
+        print ("%s%s", del, r->key);
     print ("\n");
-    assert (integrity (tr->result, key));
-    return tr->result;
+    assert (integrity (tr->found, key));
+    return tr->found;
 }
 
-const char *trie_find (void *trie, const char *key)
+const struct result *trie_find (void *trie, const char *key)
 {
     return *trie_find_all (trie, key);
 }
