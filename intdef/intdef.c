@@ -44,7 +44,8 @@ void f3()
 static
 void f4()
 {
-    assert(-1 < 0u);
+    unsigned zero = 0;
+    assert(-1 < zero);
 }
 
 static
@@ -92,9 +93,9 @@ void f9()
 }
 
 static
-void safe_memcpy(char* dst, const char* src, int srclen, int nbytes)
+void safe_memcpy(char* dst, const char* src, int buflen, int nbytes)
 {
-    memcpy(dst, src, srclen < nbytes ? srclen : nbytes);
+    memcpy(dst, src, buflen < nbytes ? buflen : nbytes);
 }
 
 static
