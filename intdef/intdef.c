@@ -105,8 +105,18 @@ void f10()
     safe_memcpy(dst, src, 64, -1);
 }
 
+static
+void f11()
+{
+    char a = 'a';
+    size_t x = sizeof(a);
+    size_t y = sizeof('a');
+    assert(x == y);
+}
+
 int main()
 {
+    f11();
     f10();
     f9();
     f8();
